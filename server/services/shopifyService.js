@@ -50,7 +50,7 @@ async function storefrontQuery(query, variables = {}) {
 async function getReviewProducts(first = 50, cursor = null) {
   const query = `
     query GetReviewProducts($first: Int!, $after: String) {
-      products(first: $first, after: $after, query: "product_type:'Rye Whiskey Review'") {
+      products(first: $first, after: $after, query: "product_type:'Rye Whiskey Review' OR tag:'Rye Whiskey Reviews'") {
         edges {
           cursor
           node {
