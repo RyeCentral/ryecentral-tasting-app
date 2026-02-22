@@ -46,6 +46,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
       wsService.on('sync:state', (msg) => {
         setEvent(msg.event);
+        if (msg.leaderboard) {
+          setLeaderboard(msg.leaderboard);
+        }
         // If event is active, request current bottle state
         if (msg.event?.status === 'active') {
           // Server will have sent the current bottle in state

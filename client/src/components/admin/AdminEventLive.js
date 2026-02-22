@@ -36,6 +36,9 @@ export default function AdminEventLive({ eventId }) {
 
       wsService.on('sync:state', (msg) => {
         setEvent(msg.event);
+        if (msg.leaderboard) {
+          setLeaderboard(msg.leaderboard);
+        }
       }),
 
       wsService.on('guest:joined', (msg) => {

@@ -60,11 +60,16 @@ function setupWebSocket(server) {
       ws.role = 'admin';
       ws.eventId = eventId;
 
-      // Send full state to admin
-      sendToClient(ws, {
+      // Send full state to admin (include leaderboard if event is complete)
+      const adminPayload = {
         type: 'sync:state',
         event: event.toJSON('admin'),
-      });
+      };
+      if (event.status === 'complete') {
+        adminPayload.leaderboard = event.getLeaderboard();
+        adminPayload.prizes = event.prizes;
+      }
+      sendToClient(ws, adminPayload);
     } else if (role === 'guest' && guestId) {
       room.guests.set(guestId, ws);
       ws.role = 'guest';
@@ -73,12 +78,17 @@ function setupWebSocket(server) {
 
       event.setGuestConnected(guestId, true);
 
-      // Send state to guest
-      sendToClient(ws, {
+      // Send state to guest (include leaderboard if event is complete)
+      const guestPayload = {
         type: 'sync:state',
         event: event.toJSON('guest'),
         guestId,
-      });
+      };
+      if (event.status === 'complete') {
+        guestPayload.leaderboard = event.getLeaderboard();
+        guestPayload.prizes = event.prizes;
+      }
+      sendToClient(ws, guestPayload);
 
       // Notify admin
       const guest = event.guests.get(guestId);
