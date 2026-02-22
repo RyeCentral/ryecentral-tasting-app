@@ -6,24 +6,27 @@
  * review (title + body + stars). Guests can edit before submitting.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { previewReview, submitReview } from '../../services/api';
 
 export default function ReviewPoster({ eventId, guestId, bottles }) {
-  const [previews, setPreviews] = useState({});  // { letter: { title, body, rating, productTitle } }
+  const [previews, setPreviews] = useState({});  // { letter: { title, body, rating, productTitle } | null (error) }
   const [editing, setEditing] = useState({});     // { letter: { title, body } }
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState({});  // { letter: true }
   const [loading, setLoading] = useState({});      // { letter: true }
   const [errors, setErrors] = useState({});        // { letter: 'msg' }
   const [expanded, setExpanded] = useState(false);
+  const fetchedRef = useRef(new Set());           // Track which bottles we've started fetching
 
   // Load previews for all revealed bottles
   useEffect(() => {
     if (!expanded || !bottles?.length) return;
 
     bottles.forEach((bottle) => {
-      if (!bottle.revealed || previews[bottle.letter]) return;
+      if (!bottle.revealed || fetchedRef.current.has(bottle.letter)) return;
+      fetchedRef.current.add(bottle.letter);
+
       previewReview(eventId, guestId, bottle.letter)
         .then((data) => {
           setPreviews((prev) => ({
@@ -37,7 +40,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
           setPreviews((prev) => ({ ...prev, [bottle.letter]: null }));
         });
     });
-  }, [expanded, bottles, eventId, guestId, previews]);
+  }, [expanded, bottles, eventId, guestId]);
 
   const handleEdit = (letter, field, value) => {
     setEditing((prev) => ({
@@ -98,6 +101,18 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
           <div style={{ fontWeight: 700, fontSize: 16 }}>Post Your Reviews to RyeCentral</div>
           <div style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
             Share your blind tasting notes on each bottle's product page
+          </div>
+          <div style={{
+            display: 'inline-block',
+            marginTop: 6,
+            padding: '3px 10px',
+            background: 'var(--rc-orange)',
+            color: '#fff',
+            borderRadius: 12,
+            fontSize: 12,
+            fontWeight: 700,
+          }}>
+            Get a $10 Gift Voucher for each review posted!
           </div>
         </div>
         <span style={{ fontSize: 20, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -165,9 +180,26 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                 </div>
 
                 {isSubmitted ? (
-                  <p style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
-                    Review submitted to Judge.me! It may take a moment to appear on the product page.
-                  </p>
+                  <div>
+                    <p style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
+                      Review submitted to Judge.me! It may take a moment to appear on the product page.
+                    </p>
+                    <div style={{
+                      marginTop: 8,
+                      padding: '8px 12px',
+                      background: 'var(--rc-orange-light)',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--rc-orange)',
+                    }}>
+                      $10 Gift Voucher earned! Check your email.
+                    </div>
+                  </div>
+                ) : previews[bottle.letter] === null ? (
+                  <div style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
+                    Could not load review preview. The tasting session may have expired.
+                  </div>
                 ) : !preview ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div className="spinner" style={{ width: 16, height: 16 }} />
@@ -178,7 +210,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                     {/* Stars */}
                     <div style={{ marginBottom: 8 }}>
                       <span style={{ fontSize: 20, letterSpacing: 2 }}>
-                        {'★'.repeat(preview.rating)}{'☆'.repeat(5 - preview.rating)}
+                        {'★'.repeat(Math.min(5, Math.max(0, preview.rating || 3)))}{'☆'.repeat(Math.max(0, 5 - (preview.rating || 3)))}
                       </span>
                     </div>
 

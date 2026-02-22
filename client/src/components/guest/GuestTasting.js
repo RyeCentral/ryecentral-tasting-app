@@ -87,7 +87,12 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       wsService.on('event:complete', (msg) => {
         setLeaderboard(msg.leaderboard);
         setPrizes(msg.prizes || []);
-        setEvent((prev) => prev ? { ...prev, status: 'complete' } : prev);
+        // Mark all bottles as revealed (tasting is over) and set status to complete
+        setEvent((prev) => prev ? {
+          ...prev,
+          status: 'complete',
+          bottles: (prev.bottles || []).map((b) => ({ ...b, revealed: true })),
+        } : prev);
       }),
     ];
 

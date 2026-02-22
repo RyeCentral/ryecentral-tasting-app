@@ -219,7 +219,27 @@ function parseFlavorProfile(html) {
     finishLength: null,
   };
 
-  // Find the Flavor Profile section
+  // ── V2 format: .rc-flavor-row > .rc-flavor-label + .rc-flavor-val ──
+  if (html.includes('rc-flavor-row')) {
+    // Match each flavor row: label text and value text
+    const rowPattern = /rc-flavor-label[^>]*>([^<]+)<\/div>[\s\S]*?rc-flavor-val[^>]*>(\d+(?:\.\d+)?)<\/div>/gi;
+    let match;
+    while ((match = rowPattern.exec(html)) !== null) {
+      const label = match[1].trim().toLowerCase();
+      const value = parseFloat(match[2]);
+      if (label.includes('sweetness')) profile.sweetness = value;
+      else if (label.includes('rye') || label.includes('spice')) profile.ryeSpice = value;
+      else if (label.includes('herbal') || label.includes('mint')) profile.herbalMint = value;
+      else if (label.includes('fruit')) profile.fruit = value;
+      else if (label.includes('oak') || label.includes('vanilla')) profile.oakVanilla = value;
+      else if (label.includes('body')) profile.body = value;
+      else if (label.includes('heat')) profile.heat = value;
+      else if (label.includes('finish')) profile.finishLength = value;
+    }
+    if (Object.values(profile).some((v) => v !== null)) return profile;
+  }
+
+  // ── V1 format: <ul> with <strong>Label:</strong> N/10 ──
   const flavorIdx = html.indexOf('Flavor Profile');
   if (flavorIdx === -1) return profile;
 
@@ -290,15 +310,27 @@ function parseTastingNotes(html) {
     finish: null,
   };
 
-  // Find the "Tastes Like" section (preferred) or look globally
+  // ── V2 format: .rc-tasting-card > h4 (Nose/Palate/Finish) + p (notes text) ──
+  if (html.includes('rc-tasting-card')) {
+    const cardPattern = /rc-tasting-card[^>]*>[\s\S]*?<h4[^>]*>([^<]+)<\/h4>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let match;
+    while ((match = cardPattern.exec(html)) !== null) {
+      const label = match[1].trim().toLowerCase();
+      const text = stripHtml(match[2]).trim();
+      if (label.includes('nose')) notes.nose = text;
+      else if (label.includes('palate')) notes.palate = text;
+      else if (label.includes('finish')) notes.finish = text;
+    }
+    if (notes.nose || notes.palate || notes.finish) return notes;
+  }
+
+  // ── V1 format: <strong>Nose:</strong> text ──
   let searchHtml = html;
   const tastesIdx = html.indexOf('Tastes Like');
   if (tastesIdx > -1) {
-    // Get a generous chunk after "Tastes Like"
     searchHtml = html.substring(tastesIdx, tastesIdx + 5000);
   }
 
-  // Extract each section
   for (const key of ['nose', 'palate', 'finish']) {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
     const value = extractAfterLabel(searchHtml, label);
@@ -368,16 +400,13 @@ function extractNoteKeywords(noteText) {
  * Returns a number (e.g., 3.7) or null.
  */
 function parseCommunityScore(html) {
-  const patterns = [
-    /Community Score:\s*(\d+(?:\.\d+)?)/i,
-  ];
+  // V2 format: <div class="rc-comm-big-score">3.9</div>
+  const v2Match = html.match(/rc-comm-big-score[^>]*>(\d+(?:\.\d+)?)\s*<\/div>/i);
+  if (v2Match) return parseFloat(v2Match[1]);
 
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      return parseFloat(match[1]);
-    }
-  }
+  // V1 format: "Community Score: 3.7"
+  const v1Match = html.match(/Community Score:\s*(\d+(?:\.\d+)?)/i);
+  if (v1Match) return parseFloat(v1Match[1]);
 
   return null;
 }
@@ -403,7 +432,27 @@ function parseQuickFacts(html) {
     whatItIs: null,
   };
 
-  // Find the Quick Facts section
+  // ── V2 format: .rc-fact-item > .rc-fact-label + .rc-fact-value ──
+  if (html.includes('rc-fact-item')) {
+    const factPattern = /rc-fact-label[^>]*>([^<]+)<\/div>[\s\S]*?rc-fact-value[^>]*>([\s\S]*?)<\/div>/gi;
+    let match;
+    while ((match = factPattern.exec(html)) !== null) {
+      const label = match[1].trim().toLowerCase();
+      const value = stripHtml(match[2]).trim();
+      if (label.includes('proof') || label.includes('abv')) facts.proof = value;
+      else if (label === 'age') facts.age = value;
+      else if (label.includes('mash')) facts.mashBill = value;
+      else if (label.includes('price')) {
+        facts.typicalPrice = value;
+        const priceMatch = value.match(/\$(\d+(?:\.\d+)?)/);
+        if (priceMatch) facts.retailPriceNum = parseFloat(priceMatch[1]);
+      }
+      else if (label.includes('type') || label.includes('what')) facts.whatItIs = value;
+    }
+    if (facts.proof || facts.age || facts.mashBill) return facts;
+  }
+
+  // ── V1 format: <strong>Label:</strong> value in <ul>/<li> ──
   const factsIdx = html.indexOf('Quick Facts');
   if (factsIdx === -1) return facts;
 
@@ -412,17 +461,14 @@ function parseQuickFacts(html) {
 
   const section = html.substring(factsIdx, sectionEnd + 5);
 
-  // Extract each fact
   facts.whatItIs = extractAfterLabel(section, 'What it is');
   facts.proof = extractAfterLabel(section, 'Proof/ABV') || extractAfterLabel(section, 'Proof');
   facts.age = extractAfterLabel(section, 'Age');
   facts.mashBill = extractAfterLabel(section, 'Mash bill') || extractAfterLabel(section, 'Mashbill');
 
-  // Price — try "Typical price" first, then just "price"
   const priceText = extractAfterLabel(section, 'Typical price') || extractAfterLabel(section, 'Price');
   if (priceText) {
     facts.typicalPrice = priceText;
-    // Also extract numeric price value
     const priceMatch = priceText.match(/\$(\d+(?:\.\d+)?)/);
     if (priceMatch) {
       facts.retailPriceNum = parseFloat(priceMatch[1]);
