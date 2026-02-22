@@ -7,6 +7,8 @@ module.exports = {
   // Shopify Storefront API
   SHOPIFY_STORE_DOMAIN: process.env.SHOPIFY_STORE_DOMAIN || 'mrmjjs-tu.myshopify.com',
   SHOPIFY_STOREFRONT_TOKEN: process.env.SHOPIFY_STOREFRONT_TOKEN || '',
+  // Public storefront domain (for REST API — no token needed)
+  SHOPIFY_PUBLIC_DOMAIN: process.env.SHOPIFY_PUBLIC_DOMAIN || 'www.ryecentral.com',
 
   // Admin credentials (simple for home use — upgrade to OAuth for production)
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',

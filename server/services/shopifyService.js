@@ -1,10 +1,13 @@
 /**
- * Shopify Storefront API Service
+ * Shopify Product Service
  * Pulls rye whiskey review products from RyeCentral's Shopify store.
  *
- * Review products use productType "Rye Whiskey Review" and contain all
- * tasting data (flavor profile, nose/palate notes, community score, quick facts)
- * embedded in the product descriptionHtml.
+ * Uses the public Online Store REST endpoints to fetch products from the
+ * "Rye Whiskey Reviews" collection. This ensures ALL products published to the
+ * Online Store are visible, regardless of custom app channel publishing.
+ *
+ * Review products contain all tasting data (flavor profile, nose/palate notes,
+ * community score, quick facts) embedded in the product body_html/descriptionHtml.
  *
  * This service parses that HTML to extract structured tasting data.
  */
@@ -12,6 +15,8 @@
 const config = require('../config/env');
 
 const STOREFRONT_API_URL = `https://${config.SHOPIFY_STORE_DOMAIN}/api/2025-01/graphql.json`;
+const PUBLIC_STORE_URL = `https://${config.SHOPIFY_PUBLIC_DOMAIN}`;
+const COLLECTION_HANDLE = 'rye-whiskey-reviews';
 
 // ── Storefront API Query ─────────────────────────────────
 
@@ -88,6 +93,38 @@ async function getReviewProducts(first = 50, cursor = null) {
 
   const data = await storefrontQuery(query, { first, after: cursor });
   return data.products;
+}
+
+/**
+ * Fetch all products from a collection via the public Online Store REST endpoint.
+ * This works for ANY product published to the Online Store — no custom app
+ * channel publishing required. Supports pagination via page param (max 250/page).
+ */
+async function getCollectionProductsREST(collectionHandle = COLLECTION_HANDLE) {
+  const allProducts = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const url = `${PUBLIC_STORE_URL}/collections/${collectionHandle}/products.json?limit=250&page=${page}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error('REST API error:', response.status, response.statusText, url);
+      throw new Error(`REST API error: ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    const products = json.products || [];
+    allProducts.push(...products);
+
+    // If we got fewer than 250, we've reached the end
+    hasMore = products.length === 250;
+    page++;
+  }
+
+  console.log(`Fetched ${allProducts.length} products from collection "${collectionHandle}" via REST`);
+  return allProducts;
 }
 
 /**
@@ -399,13 +436,43 @@ function parseQuickFacts(html) {
 
 /**
  * Transform raw Shopify product into our tasting app format.
- * Parses all tasting data from the descriptionHtml.
+ * Supports both REST API format (body_html, images array) and
+ * GraphQL Storefront API format (descriptionHtml, images.edges).
  */
 function transformToTastingProduct(shopifyProduct) {
   if (!shopifyProduct) return null;
 
-  const html = shopifyProduct.descriptionHtml || '';
-  const image = shopifyProduct.images?.edges?.[0]?.node;
+  // Handle both REST (body_html) and GraphQL (descriptionHtml) formats
+  const html = shopifyProduct.descriptionHtml || shopifyProduct.body_html || '';
+
+  // Handle both REST (images array) and GraphQL (images.edges) formats
+  let image = null;
+  if (shopifyProduct.images?.edges?.[0]?.node) {
+    // GraphQL format
+    const node = shopifyProduct.images.edges[0].node;
+    image = { url: node.url, alt: node.altText };
+  } else if (shopifyProduct.images?.[0]) {
+    // REST format
+    const img = shopifyProduct.images[0];
+    image = { url: img.src, alt: img.alt || shopifyProduct.title };
+  }
+
+  // Handle price from REST (variants[0].price) or GraphQL (priceRange)
+  const restPrice = shopifyProduct.variants?.[0]?.price
+    ? parseFloat(shopifyProduct.variants[0].price)
+    : null;
+  const graphqlPrice = shopifyProduct.priceRange?.minVariantPrice?.amount
+    ? parseFloat(shopifyProduct.priceRange.minVariantPrice.amount)
+    : null;
+
+  // Handle tags — REST returns array of strings, GraphQL also returns array
+  const tags = shopifyProduct.tags || [];
+
+  // Handle ID — REST returns numeric, GraphQL returns gid://shopify/Product/xxx
+  // Normalize to gid format for consistency
+  const id = typeof shopifyProduct.id === 'number'
+    ? `gid://shopify/Product/${shopifyProduct.id}`
+    : shopifyProduct.id;
 
   // Parse all structured data from HTML
   const flavorProfile = parseFlavorProfile(html);
@@ -418,13 +485,13 @@ function transformToTastingProduct(shopifyProduct) {
   const palateNotes = extractNoteKeywords(tastingNotes.palate);
 
   return {
-    id: shopifyProduct.id,
+    id,
     title: shopifyProduct.title,
     handle: shopifyProduct.handle,
     url: `https://ryecentral.com/products/${shopifyProduct.handle}`,
-    image: image ? { url: image.url, alt: image.altText } : null,
+    image,
     vendor: shopifyProduct.vendor || null,
-    tags: shopifyProduct.tags || [],
+    tags,
 
     // Community review data (what the admin sees, used for scoring)
     community: {
@@ -443,8 +510,7 @@ function transformToTastingProduct(shopifyProduct) {
       age: quickFacts.age,
       mashBill: quickFacts.mashBill,
       typicalPrice: quickFacts.typicalPrice,
-      retailPrice: quickFacts.retailPriceNum ||
-        parseFloat(shopifyProduct.priceRange?.minVariantPrice?.amount) || null,
+      retailPrice: quickFacts.retailPriceNum || restPrice || graphqlPrice || null,
       distillery: shopifyProduct.vendor || null,
       whatItIs: quickFacts.whatItIs,
     },
@@ -454,28 +520,40 @@ function transformToTastingProduct(shopifyProduct) {
 // ── Public API ───────────────────────────────────────────
 
 /**
- * Get all review products, transformed for the tasting app
+ * Get all review products, transformed for the tasting app.
+ * Uses the public REST collection endpoint (works for all Online Store products).
+ * Falls back to the Storefront GraphQL API if the REST fetch fails.
  */
 async function getAllTastingProducts() {
-  let allProducts = [];
-  let cursor = null;
-  let hasMore = true;
+  try {
+    // Primary: fetch from the public collection REST endpoint
+    const restProducts = await getCollectionProductsREST();
+    return restProducts.map(transformToTastingProduct).filter(Boolean);
+  } catch (err) {
+    console.warn('REST collection fetch failed, falling back to Storefront GraphQL:', err.message);
 
-  while (hasMore) {
-    const result = await getReviewProducts(50, cursor);
-    const products = result.edges.map((edge) => transformToTastingProduct(edge.node));
-    allProducts = allProducts.concat(products.filter(Boolean));
+    // Fallback: use the Storefront GraphQL API
+    let allProducts = [];
+    let cursor = null;
+    let hasMore = true;
 
-    hasMore = result.pageInfo.hasNextPage;
-    cursor = result.pageInfo.endCursor;
+    while (hasMore) {
+      const result = await getReviewProducts(50, cursor);
+      const products = result.edges.map((edge) => transformToTastingProduct(edge.node));
+      allProducts = allProducts.concat(products.filter(Boolean));
+
+      hasMore = result.pageInfo.hasNextPage;
+      cursor = result.pageInfo.endCursor;
+    }
+
+    return allProducts;
   }
-
-  return allProducts;
 }
 
 module.exports = {
   storefrontQuery,
   getReviewProducts,
+  getCollectionProductsREST,
   getProductByHandle,
   transformToTastingProduct,
   getAllTastingProducts,
