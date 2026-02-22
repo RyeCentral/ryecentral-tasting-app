@@ -75,8 +75,17 @@ export default function AdminEventLive({ eventId }) {
       }),
     ];
 
+    // Re-sync state when tab becomes visible (handles missed WS messages)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        wsService.reconnect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       unsubs.forEach((unsub) => unsub());
+      document.removeEventListener('visibilitychange', handleVisibility);
       wsService.disconnect();
     };
   }, [eventId]);

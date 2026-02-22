@@ -114,11 +114,6 @@ function generateReviewBody(response, product, guestName) {
     parts.push(`\nFlavor Profile:\n${fpLines.join('\n')}`);
   }
 
-  // Price guess
-  if (response.priceGuess) {
-    parts.push(`\nPrice Guess: $${response.priceGuess}`);
-  }
-
   // Free notes
   if (response.freeNotes?.trim()) {
     parts.push(`\nAdditional Notes: ${response.freeNotes.trim()}`);
@@ -138,6 +133,7 @@ async function getJudgeMeProductId(shopifyProductId, apiToken) {
   const numericId = shopifyProductId.toString().replace(/^gid:\/\/shopify\/Product\//, '');
 
   const url = `${JUDGE_ME_API}/products/-1?shop_domain=${SHOP_DOMAIN}&api_token=${apiToken}&external_id=${numericId}`;
+  console.log('Judge.me product lookup:', { numericId, url: url.replace(apiToken, '[REDACTED]') });
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -145,6 +141,7 @@ async function getJudgeMeProductId(shopifyProductId, apiToken) {
   }
 
   const data = await response.json();
+  console.log('Judge.me product lookup result:', { productId: data.product?.id, externalId: data.product?.external_id });
   return data.product?.id || null;
 }
 
@@ -179,27 +176,41 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
     judgeMeProductId = null;
   }
 
-  // Build payload
+  // Extract numeric Shopify ID (strip gid:// prefix if present)
+  const numericId = product.id.toString().replace(/^gid:\/\/shopify\/Product\//, '');
+
+  // Build payload — always include api_token, shop_domain, and product_url
+  // for the most reliable product association
   const payload = {
     shop_domain: SHOP_DOMAIN,
+    api_token: apiToken,
     platform: 'shopify',
     name: guestName,
     email: guestEmail,
     rating: starRating,
     title,
     body,
+    // Always include external_id (Shopify numeric product ID)
+    external_id: numericId,
     // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
     // Flavor profile data is included in the body text instead.
   };
 
-  // Use internal ID if available, otherwise external_id
+  // Also set internal Judge.me product ID if we found one
   if (judgeMeProductId) {
     payload.id = judgeMeProductId;
-  } else {
-    // Extract numeric Shopify ID
-    const numericId = product.id.toString().replace(/^gid:\/\/shopify\/Product\//, '');
-    payload.external_id = numericId;
   }
+
+  // Include product_url for additional product matching reliability
+  if (product.handle) {
+    payload.product_url = `https://${SHOP_DOMAIN}/products/${product.handle}`;
+  }
+
+  console.log('Judge.me submit payload:', JSON.stringify({
+    ...payload,
+    api_token: '[REDACTED]',
+    body: body.substring(0, 100) + '...',
+  }));
 
   // Submit to Judge.me
   const url = `${JUDGE_ME_API}/reviews`;
@@ -207,7 +218,6 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiToken}`,
     },
     body: JSON.stringify(payload),
   });

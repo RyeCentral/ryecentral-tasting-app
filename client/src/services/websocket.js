@@ -16,6 +16,13 @@ class WebSocketService {
   connect({ eventId, role, guestId }) {
     this._params = { eventId, role, guestId };
 
+    // Close existing connection if any (without triggering reconnect)
+    if (this.ws) {
+      this.ws.onclose = null; // Prevent reconnect loop
+      this.ws.close();
+      this.ws = null;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = window.location.hostname;
     // In dev the WS runs on 3001 (server port), not 3000 (CRA).
@@ -51,6 +58,17 @@ class WebSocketService {
     this.ws.onerror = (error) => {
       console.error('WS error:', error);
     };
+  }
+
+  /**
+   * Force reconnect — closes existing connection and opens a fresh one.
+   * Used for visibility change recovery (tab coming back to focus).
+   */
+  reconnect() {
+    if (!this._params) return;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
+    this.connect(this._params);
   }
 
   disconnect() {

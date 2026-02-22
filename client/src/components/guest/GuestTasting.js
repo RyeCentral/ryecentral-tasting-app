@@ -52,10 +52,6 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         if (msg.prizes) {
           setPrizes(msg.prizes);
         }
-        // If event is active, request current bottle state
-        if (msg.event?.status === 'active') {
-          // Server will have sent the current bottle in state
-        }
       }),
 
       wsService.on('event:started', (msg) => {
@@ -70,7 +66,6 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       }),
 
       wsService.on('bottle:reveal', (msg) => {
-        // A bottle was revealed — update our state
         setEvent((prev) => {
           if (!prev) return prev;
           const bottles = (prev.bottles || []).map((b) =>
@@ -87,7 +82,6 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       wsService.on('event:complete', (msg) => {
         setLeaderboard(msg.leaderboard);
         setPrizes(msg.prizes || []);
-        // Mark all bottles as revealed (tasting is over) and set status to complete
         setEvent((prev) => prev ? {
           ...prev,
           status: 'complete',
@@ -96,8 +90,18 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       }),
     ];
 
+    // Re-sync state when tab becomes visible (handles missed WS messages
+    // e.g. when guest's phone screen was off during score calculation)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        wsService.reconnect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       unsubs.forEach((unsub) => unsub());
+      document.removeEventListener('visibilitychange', handleVisibility);
       wsService.disconnect();
     };
   }, [eventId, guestId]);
