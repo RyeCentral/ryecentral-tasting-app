@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/api';
 
 export default function InviteShare({ event }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
   const joinUrl = `${window.location.origin}/join/${event.inviteCode}`;
-  const qrUrl = api.getQrCode(event.id);
+
+  useEffect(() => {
+    fetch(api.getQrCode(event.id))
+      .then(res => res.json())
+      .then(data => setQrDataUrl(data.qr))
+      .catch(err => console.error('Failed to load QR code:', err));
+  }, [event.id]);
 
   const copyLink = async () => {
     try {
@@ -43,7 +50,11 @@ export default function InviteShare({ event }) {
           <div className="invite-code">{event.inviteCode}</div>
 
           <div className="invite-qr">
-            <img src={qrUrl} alt="QR code to join tasting" />
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="QR code to join tasting" style={{ width: 300, height: 300 }} />
+            ) : (
+              <p style={{ color: '#888' }}>Loading QR code...</p>
+            )}
           </div>
 
           <div className="invite-link">
