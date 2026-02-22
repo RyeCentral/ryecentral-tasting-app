@@ -216,14 +216,20 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
 
                     {/* Title (editable) */}
                     <div style={{ marginBottom: 8 }}>
-                      <label style={{ fontWeight: 600, fontSize: 12, display: 'block', marginBottom: 2, color: 'var(--rc-gray-500)' }}>
-                        Title
+                      <label style={{ fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, color: 'var(--rc-gray-500)' }}>
+                        Review Title <span style={{ fontSize: 11, fontWeight: 400 }}>— tap to edit</span>
                       </label>
                       <input
                         className="form-input"
                         value={edits.title ?? preview.title}
                         onChange={(e) => handleEdit(bottle.letter, 'title', e.target.value)}
-                        style={{ fontSize: 14, fontWeight: 600 }}
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          padding: '8px 12px',
+                          border: '2px solid var(--rc-gray-300)',
+                          borderRadius: 8,
+                        }}
                       />
                     </div>
 

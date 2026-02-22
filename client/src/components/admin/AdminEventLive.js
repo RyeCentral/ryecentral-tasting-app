@@ -42,7 +42,16 @@ export default function AdminEventLive({ eventId }) {
       }),
 
       wsService.on('guest:joined', (msg) => {
-        setEvent((prev) => prev ? { ...prev, guestCount: msg.guestCount, guests: [...(prev.guests || []), msg.guest] } : prev);
+        setEvent((prev) => {
+          if (!prev) return prev;
+          const existing = (prev.guests || []);
+          // Deduplicate: if guest already exists update their entry, otherwise append
+          const alreadyExists = existing.some((g) => g.id === msg.guest.id);
+          const guests = alreadyExists
+            ? existing.map((g) => g.id === msg.guest.id ? { ...g, ...msg.guest, connected: true } : g)
+            : [...existing, msg.guest];
+          return { ...prev, guestCount: msg.guestCount, guests };
+        });
       }),
 
       wsService.on('guest:disconnected', (msg) => {
