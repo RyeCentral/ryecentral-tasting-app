@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import StepIndicator from '../shared/StepIndicator';
 import ProductPicker from './ProductPicker';
@@ -15,13 +16,50 @@ const STEPS = [
   { key: 'invite',  label: 'Invite' },
 ];
 
+const STATUS_LABELS = {
+  setup: '🔧 Setting Up',
+  active: '🟢 In Progress',
+  scoring: '📊 Scoring',
+  complete: '✅ Complete',
+};
+
 export default function AdminSetup() {
+  const navigate = useNavigate();
   const [step, setStep] = useState('name');
   const [eventName, setEventName] = useState('');
   const [event, setEvent] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [existingEvents, setExistingEvents] = useState([]);
+  const [checkingEvents, setCheckingEvents] = useState(true);
+
+  // Check for existing events on mount
+  useEffect(() => {
+    api.getEvents()
+      .then((data) => {
+        const events = data.events || [];
+        setExistingEvents(events);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingEvents(false));
+  }, []);
+
+  const resumeEvent = (evt) => {
+    if (evt.status === 'setup') {
+      // Go back to setup flow — load event and jump to appropriate step
+      setEvent(evt);
+      if (evt.bottles && evt.bottles.length > 0) {
+        setStep('invite'); // They already picked bottles, go to invite
+      } else {
+        setStep('bottles');
+      }
+      setExistingEvents([]); // Hide the list
+    } else {
+      // Active, scoring, or complete — go to live dashboard
+      navigate(`/admin/event/${evt.id}`);
+    }
+  };
 
   // Step 1: Create event
   const handleCreateEvent = async (e) => {
@@ -106,10 +144,52 @@ export default function AdminSetup() {
           {/* Step 1: Name Your Tasting */}
           {step === 'name' && (
             <div className="container-narrow" style={{ margin: '0 auto' }}>
+              {/* Show existing events if any */}
+              {!checkingEvents && existingEvents.length > 0 && (
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 18, marginBottom: 4 }}>Your Events</h2>
+                  <p style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>
+                    Resume an existing event or create a new one below.
+                  </p>
+                  {existingEvents.map((evt) => (
+                    <div
+                      key={evt.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        background: '#f8f8f8',
+                        borderRadius: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 16 }}>{evt.name}</div>
+                        <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>
+                          {STATUS_LABELS[evt.status] || evt.status}
+                          {evt.bottles?.length > 0 && ` · ${evt.bottles.length} bottle${evt.bottles.length !== 1 ? 's' : ''}`}
+                          {evt.guestCount > 0 && ` · ${evt.guestCount} guest${evt.guestCount !== 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-primary"
+                        style={{ whiteSpace: 'nowrap' }}
+                        onClick={() => resumeEvent(evt)}
+                      >
+                        {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="card">
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
                   <div style={{ fontSize: 48, marginBottom: 8 }}>🥃</div>
-                  <h1 className="page-title" style={{ marginBottom: 8 }}>Host a Tasting</h1>
+                  <h1 className="page-title" style={{ marginBottom: 8 }}>
+                    {existingEvents.length > 0 ? 'New Tasting' : 'Host a Tasting'}
+                  </h1>
                   <p className="page-subtitle" style={{ marginBottom: 0 }}>
                     Set up a blind rye whiskey tasting for your friends.
                   </p>
