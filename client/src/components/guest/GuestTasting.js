@@ -49,6 +49,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         if (msg.leaderboard) {
           setLeaderboard(msg.leaderboard);
         }
+        if (msg.prizes) {
+          setPrizes(msg.prizes);
+        }
         // If event is active, request current bottle state
         if (msg.event?.status === 'active') {
           // Server will have sent the current bottle in state

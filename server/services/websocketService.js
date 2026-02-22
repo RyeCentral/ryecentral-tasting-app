@@ -188,6 +188,8 @@ function handleMessage(ws, room, event, message) {
       if (ws.role !== 'admin') return;
       const leaderboard = event.calculateScores();
       event.status = 'complete';
+      // Auto-reveal all bottles now that tasting is over
+      event.bottles.forEach((b) => { b.revealed = true; });
       broadcastToAll(room, {
         type: 'event:complete',
         leaderboard,

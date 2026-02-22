@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * Animated Leaderboard — reveals entries one by one from bottom to top.
@@ -10,9 +10,19 @@ import React, { useState, useEffect } from 'react';
  */
 export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId, onRevealComplete }) {
   const [revealedCount, setRevealedCount] = useState(0);
+  const onRevealCompleteRef = useRef(onRevealComplete);
+  const animationStartedRef = useRef(false);
+
+  // Keep the callback ref up to date without triggering effect re-runs
+  useEffect(() => {
+    onRevealCompleteRef.current = onRevealComplete;
+  }, [onRevealComplete]);
 
   useEffect(() => {
     if (!leaderboard?.length) return;
+    // Only start the animation once — don't restart on re-renders
+    if (animationStartedRef.current) return;
+    animationStartedRef.current = true;
 
     // Reveal from last place to first, 600ms apart
     const total = leaderboard.length;
@@ -21,15 +31,15 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
     for (let i = 0; i < total; i++) {
       timers.push(setTimeout(() => {
         setRevealedCount(i + 1);
-        if (i === total - 1 && onRevealComplete) {
+        if (i === total - 1 && onRevealCompleteRef.current) {
           // Small extra delay before triggering celebration
-          setTimeout(onRevealComplete, 400);
+          setTimeout(() => onRevealCompleteRef.current?.(), 400);
         }
       }, (total - 1 - i) * 600 + 500)); // Reverse: last place first
     }
 
     return () => timers.forEach(clearTimeout);
-  }, [leaderboard, onRevealComplete]);
+  }, [leaderboard]);
 
   if (!leaderboard?.length) return null;
 
