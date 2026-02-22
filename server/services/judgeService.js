@@ -179,37 +179,43 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
   // Extract numeric Shopify ID (strip gid:// prefix if present)
   const numericId = product.id.toString().replace(/^gid:\/\/shopify\/Product\//, '');
 
-  // Build payload — always include api_token, shop_domain, and product_url
-  // for the most reliable product association
+  // Build payload using Judge.me's nested review structure:
+  // Top-level: shop_domain, api_token, platform
+  // Nested review: rating, title, body, product_external_id, reviewer { name, email }
   const payload = {
     shop_domain: SHOP_DOMAIN,
     api_token: apiToken,
     platform: 'shopify',
-    name: guestName,
-    email: guestEmail,
-    rating: starRating,
-    title,
-    body,
-    // Always include external_id (Shopify numeric product ID)
-    external_id: numericId,
-    // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
-    // Flavor profile data is included in the body text instead.
+    review: {
+      rating: starRating,
+      title,
+      body,
+      product_external_id: numericId,
+      reviewer: {
+        name: guestName,
+        email: guestEmail,
+      },
+      // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
+    },
   };
 
   // Also set internal Judge.me product ID if we found one
   if (judgeMeProductId) {
-    payload.id = judgeMeProductId;
+    payload.review.id = judgeMeProductId;
   }
 
   // Include product_url for additional product matching reliability
   if (product.handle) {
-    payload.product_url = `https://${SHOP_DOMAIN}/products/${product.handle}`;
+    payload.review.product_url = `https://${SHOP_DOMAIN}/products/${product.handle}`;
   }
 
   console.log('Judge.me submit payload:', JSON.stringify({
     ...payload,
     api_token: '[REDACTED]',
-    body: body.substring(0, 100) + '...',
+    review: {
+      ...payload.review,
+      body: body.substring(0, 100) + '...',
+    },
   }));
 
   // Submit to Judge.me
