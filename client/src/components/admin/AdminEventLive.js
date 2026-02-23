@@ -29,6 +29,8 @@ export default function AdminEventLive({ eventId }) {
   const [celebrate, setCelebrate] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackName, setFeedbackName] = useState('');
+  const [feedbackEmail, setFeedbackEmail] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showTastingTips, setShowTastingTips] = useState(false);
 
@@ -144,12 +146,14 @@ export default function AdminEventLive({ eventId }) {
       await api.submitFeedback(eventId, {
         rating: feedbackRating,
         comment: feedbackComment,
+        hostName: feedbackName || undefined,
+        hostEmail: feedbackEmail || undefined,
       });
     } catch (err) {
       console.error('Feedback submission error (non-critical):', err);
     }
     setFeedbackSubmitted(true);
-  }, [eventId, feedbackRating, feedbackComment]);
+  }, [eventId, feedbackRating, feedbackComment, feedbackName, feedbackEmail]);
 
   const endEvent = useCallback(async () => {
     if (!window.confirm('End this event? It will be archived and removed from your active events list.')) return;
@@ -158,6 +162,16 @@ export default function AdminEventLive({ eventId }) {
       navigate('/admin');
     } catch (err) {
       console.error('Failed to end event:', err);
+    }
+  }, [eventId, navigate]);
+
+  const deleteEventAndReturn = useCallback(async () => {
+    if (!window.confirm('Delete this event? This cannot be undone.')) return;
+    try {
+      await api.deleteEvent(eventId);
+      navigate('/admin');
+    } catch (err) {
+      console.error('Failed to delete event:', err);
     }
   }, [eventId, navigate]);
 
@@ -239,6 +253,18 @@ export default function AdminEventLive({ eventId }) {
                   >
                     Start Tasting — Bottle A
                   </button>
+                  {/* Delete event option — only before anyone has joined */}
+                  {(!event.guestCount || event.guestCount === 0) && (
+                    <div style={{ marginTop: 20 }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: 'var(--rc-red)', borderColor: 'var(--rc-red)' }}
+                        onClick={deleteEventAndReturn}
+                      >
+                        Delete Event
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -342,38 +368,82 @@ export default function AdminEventLive({ eventId }) {
                           Host Tasting Guide
                         </div>
 
-                        <div style={{ marginBottom: 14 }}>
-                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Before Each Pour</div>
+                        <div style={{ marginBottom: 14, padding: 12, background: 'rgba(232,134,12,0.1)', borderRadius: 8, border: '1px solid var(--rc-orange)' }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Between Pours — Palate Reset</div>
                           <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
-                            Have guests cleanse their palate with a sip of water and a plain cracker or bread between pours. This resets taste receptors for a more accurate read on the next bottle.
+                            This is key to an accurate tasting. Between each bottle, have guests:
+                          </div>
+                          <ul style={{ margin: '6px 0 0 16px', padding: 0, color: 'var(--rc-gray-700)', lineHeight: 1.6 }}>
+                            <li><strong>Sip water</strong> — still water at room temperature, not sparkling</li>
+                            <li><strong>Eat a plain cracker or bread</strong> — unsalted crackers, baguette slices, or lightly salted nuts reset your taste buds</li>
+                            <li><strong>Wait 1-2 minutes</strong> — give the palate time to recover before the next pour, especially after higher proof bottles</li>
+                            <li><strong>Breathe fresh air</strong> — step away from the glasses briefly to reset the nose</li>
+                          </ul>
+                          <div style={{ color: 'var(--rc-gray-500)', marginTop: 6, fontSize: 12, fontStyle: 'italic' }}>
+                            Avoid bold foods (spicy, garlic, citrus) during the structured tasting — save those for after.
                           </div>
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
                           <div style={{ fontWeight: 700, marginBottom: 4 }}>How to Nose</div>
                           <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
-                            Cup the glass and swirl gently. Nose from a distance first (2-3 inches), then bring closer. Take short sniffs with your mouth slightly open. Let the alcohol burn fade before going back — the second and third passes reveal the real character.
+                            Cup the glass and swirl gently. Nose from a distance first (2-3 inches), then bring closer. Take short sniffs with your mouth slightly open — this draws out the aromas. Let the alcohol burn fade before going back. The second and third passes reveal the real character.
                           </div>
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
                           <div style={{ fontWeight: 700, marginBottom: 4 }}>How to Taste</div>
                           <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
-                            Take a small sip and let it coat your entire tongue. Wait 15-20 seconds before the second sip — you'll pick up completely different notes. The finish (aftertaste) is just as important: does it linger? Does it change?
+                            Take a small sip and let it coat your entire tongue. Wait 15-20 seconds before the second sip — you'll pick up completely different notes. The finish (aftertaste) is just as important: does it linger? Does it change? Optionally add a few drops of water, then re-nose and re-sip to see how the flavors open up.
                           </div>
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
-                          <div style={{ fontWeight: 700, marginBottom: 4 }}>What the Flavor Profiles Mean</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, color: 'var(--rc-gray-700)' }}>
-                            <div><strong>Sweetness:</strong> Caramel, honey, butterscotch, brown sugar</div>
-                            <div><strong>Rye Spice:</strong> Black pepper, cinnamon, clove, baking spice</div>
-                            <div><strong>Herbal/Mint:</strong> Dill, eucalyptus, fresh herbs, menthol</div>
-                            <div><strong>Fruit:</strong> Cherry, apple, citrus, dried fruit</div>
-                            <div><strong>Oak/Vanilla:</strong> Wood char, vanilla extract, coconut</div>
-                            <div><strong>Body:</strong> Thin/watery vs thick/chewy mouthfeel</div>
-                            <div><strong>Heat:</strong> Alcohol burn intensity — higher proof = more heat</div>
-                            <div><strong>Finish:</strong> How long flavors linger after swallowing</div>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Tasting Prompts to Share</div>
+                          <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
+                            Help guests who say "I can't taste notes" by offering options:
+                          </div>
+                          <ul style={{ margin: '4px 0 0 16px', padding: 0, color: 'var(--rc-gray-700)', lineHeight: 1.6 }}>
+                            <li>"Is this dill or mint to you?"</li>
+                            <li>"Peppercorn, cinnamon, or clove?"</li>
+                            <li>"Citrus: lemon peel or grapefruit pith?"</li>
+                            <li>"Does the finish feel dry like tea, or sweet like caramel?"</li>
+                          </ul>
+                        </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 8 }}>Flavor Profile Scale Guide</div>
+                          <div style={{ color: 'var(--rc-gray-500)', marginBottom: 8, fontSize: 12 }}>
+                            Help guests understand what 0 vs 10 means for each slider:
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4, color: 'var(--rc-gray-700)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.04)', borderRadius: 6, fontWeight: 600 }}>
+                              <span>Category</span><span>0 (Low)</span><span>10 (High)</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                              <strong>Sweetness</strong><span>Bone dry, no sweetness</span><span>Very sweet — maple syrup, honey</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                              <strong>Rye Spice</strong><span>No spice, smooth</span><span>Intense pepper/cinnamon burn</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                              <strong>Herbal/Mint</strong><span>No herbal notes</span><span>Strong dill, eucalyptus, menthol</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                              <strong>Fruit</strong><span>No fruit detected</span><span>Bursting cherry, apple, citrus</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                              <strong>Oak/Vanilla</strong><span>No wood influence</span><span>Heavy char, rich vanilla, coconut</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                              <strong>Body</strong><span>Thin, watery, light</span><span>Thick, chewy, full mouthfeel</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                              <strong>Heat</strong><span>No burn, very smooth</span><span>Fiery, intense alcohol burn</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                              <strong>Finish</strong><span>Gone instantly, no linger</span><span>Lasts minutes, evolving flavors</span>
+                            </div>
                           </div>
                         </div>
 
@@ -472,7 +542,7 @@ export default function AdminEventLive({ eventId }) {
                       <div>
                         <h3 style={{ fontSize: 16, marginBottom: 4 }}>How was your event?</h3>
                         <p style={{ color: 'var(--rc-gray-500)', fontSize: 13, marginBottom: 16 }}>
-                          Rate RyeCentral's Home Rye Whiskey Tasting App
+                          Rate RyeCentral's Home Rye Whiskey Tasting App — your review will be posted to our store!
                         </p>
                         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
                           {[1, 2, 3, 4, 5].map((star) => (
@@ -493,6 +563,22 @@ export default function AdminEventLive({ eventId }) {
                               {star <= feedbackRating ? '\u2605' : '\u2606'}
                             </button>
                           ))}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <input
+                            className="form-input"
+                            type="text"
+                            placeholder="Your name"
+                            value={feedbackName}
+                            onChange={(e) => setFeedbackName(e.target.value)}
+                          />
+                          <input
+                            className="form-input"
+                            type="email"
+                            placeholder="Your email"
+                            value={feedbackEmail}
+                            onChange={(e) => setFeedbackEmail(e.target.value)}
+                          />
                         </div>
                         <textarea
                           className="form-input"

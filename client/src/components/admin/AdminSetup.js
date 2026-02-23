@@ -95,6 +95,12 @@ export default function AdminSetup() {
     setLoading(true);
     setError('');
     try {
+      // Clear any existing bottles first (prevents duplicates when navigating back)
+      if (event.bottles?.length > 0) {
+        for (const bottle of [...event.bottles].reverse()) {
+          await api.removeBottle(event.id, bottle.letter);
+        }
+      }
       for (const product of selectedProducts) {
         await api.addBottle(event.id, product);
       }
@@ -202,13 +208,31 @@ export default function AdminSetup() {
                           {evt.guestCount > 0 && ` · ${evt.guestCount} guest${evt.guestCount !== 1 ? 's' : ''}`}
                         </div>
                       </div>
-                      <button
-                        className="btn btn-primary"
-                        style={{ whiteSpace: 'nowrap' }}
-                        onClick={() => resumeEvent(evt)}
-                      >
-                        {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {evt.status === 'setup' && (!evt.guestCount || evt.guestCount === 0) && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#e53e3e', borderColor: '#e53e3e', whiteSpace: 'nowrap' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!window.confirm(`Delete "${evt.name}"? This cannot be undone.`)) return;
+                              try {
+                                await api.deleteEvent(evt.id);
+                                setExistingEvents((prev) => prev.filter((x) => x.id !== evt.id));
+                              } catch (err) { setError(err.message); }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-primary"
+                          style={{ whiteSpace: 'nowrap' }}
+                          onClick={() => resumeEvent(evt)}
+                        >
+                          {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

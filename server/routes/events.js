@@ -7,7 +7,7 @@ const router = express.Router();
 const QRCode = require('qrcode');
 const config = require('../config/env');
 const { createEvent, getEvent, getEventByInviteCode, getAllEvents, deleteEvent } = require('../models/TastingEvent');
-const { previewReview, submitReview } = require('../services/judgeService');
+const { previewReview, submitReview, submitStoreReview } = require('../services/judgeService');
 
 /**
  * POST /api/events
@@ -285,15 +285,37 @@ router.post('/:id/end', (req, res) => {
  * POST /api/events/:id/feedback
  * Submit host feedback about the tasting app experience
  */
-router.post('/:id/feedback', (req, res) => {
+router.post('/:id/feedback', async (req, res) => {
   const event = getEvent(req.params.id);
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
-  const { rating, comment } = req.body;
+  const { rating, comment, hostName, hostEmail } = req.body;
   console.log(`Host feedback for event "${event.name}" (${req.params.id}): ${rating}/5 stars${comment ? ` — "${comment}"` : ''}`);
 
-  // Store feedback on the event for potential future use
+  // Store feedback on the event
   event.hostFeedback = { rating, comment, submittedAt: new Date().toISOString() };
+
+  // Also submit as a store-level Judge.me review
+  if (config.JUDGEME_API_TOKEN) {
+    try {
+      const reviewTitle = `Home Tasting Event: ${event.name}`;
+      const reviewBody = comment
+        ? `Hosted a blind rye whiskey tasting event "${event.name}" using the RyeCentral Home Tasting App.\n\n${comment}`
+        : `Hosted a blind rye whiskey tasting event "${event.name}" using the RyeCentral Home Tasting App.`;
+
+      await submitStoreReview({
+        apiToken: config.JUDGEME_API_TOKEN,
+        name: hostName || 'Tasting Host',
+        email: hostEmail || `host-${req.params.id}@tasting.ryecentral.com`,
+        rating,
+        title: reviewTitle,
+        body: reviewBody,
+      });
+      console.log('Host feedback submitted to Judge.me as store review');
+    } catch (err) {
+      console.error('Judge.me store review error (non-critical):', err.message);
+    }
+  }
 
   res.json({ success: true });
 });
