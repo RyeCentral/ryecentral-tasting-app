@@ -8,11 +8,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { previewReview, submitReview } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ReviewPoster({ eventId, guestId, bottles }) {
+  const { customer } = useAuth();
   const [previews, setPreviews] = useState({});  // { letter: { title, body, rating, productTitle } | null (error) }
   const [editing, setEditing] = useState({});     // { letter: { title, body } }
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(customer?.email || '');
   const [submitted, setSubmitted] = useState({});  // { letter: true }
   const [loading, setLoading] = useState({});      // { letter: true }
   const [errors, setErrors] = useState({});        // { letter: 'msg' }

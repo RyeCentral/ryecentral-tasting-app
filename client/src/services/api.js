@@ -1,15 +1,42 @@
 /**
  * API Service — talks to the Express backend at /api/*
  * In dev the CRA proxy forwards to localhost:3001.
+ *
+ * All authenticated requests include the JWT token from localStorage.
  */
 
 const BASE = '/api';
+const AUTH_STORAGE_KEY = 'rc_tasting_auth';
+
+/**
+ * Get the stored auth token (if any).
+ */
+function getAuthToken() {
+  try {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (stored) {
+      const { token } = JSON.parse(stored);
+      return token;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 async function request(path, options = {}) {
   const url = `${BASE}${path}`;
+
+  // Build headers — include auth token if available
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers,
   });
 
   const data = await res.json().catch(() => null);

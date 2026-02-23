@@ -2,6 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import * as api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+
+const SESSION_KEY = 'rc_tasting_session';
+
+function getSavedSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+  } catch { return null; }
+}
+
+function saveSession(data) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
 
 const SESSION_KEY = 'rc_tasting_session';
 
@@ -20,8 +35,9 @@ function saveSession(data) {
 export default function GuestJoin() {
   const { inviteCode: urlCode } = useParams();
   const navigate = useNavigate();
+  const { customer } = useAuth();
   const [code, setCode] = useState(urlCode || '');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(customer?.displayName || customer?.firstName || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(!!urlCode); // Check for saved session if we have a code

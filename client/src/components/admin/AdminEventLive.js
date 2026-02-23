@@ -5,6 +5,7 @@ import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
 import wsService from '../../services/websocket';
 import * as api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const FLAVOR_LABELS = {
   sweetness: 'Sweetness',
@@ -19,6 +20,7 @@ const FLAVOR_LABELS = {
 
 export default function AdminEventLive({ eventId }) {
   const navigate = useNavigate();
+  const { customer } = useAuth();
   const [event, setEvent] = useState(null);
   const [connected, setConnected] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -29,8 +31,8 @@ export default function AdminEventLive({ eventId }) {
   const [celebrate, setCelebrate] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
-  const [feedbackName, setFeedbackName] = useState('');
-  const [feedbackEmail, setFeedbackEmail] = useState('');
+  const [feedbackName, setFeedbackName] = useState(customer?.displayName || customer?.firstName || '');
+  const [feedbackEmail, setFeedbackEmail] = useState(customer?.email || '');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showTastingTips, setShowTastingTips] = useState(false);
 
