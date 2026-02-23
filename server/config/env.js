@@ -23,6 +23,10 @@ module.exports = {
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
 
+    // Resend API for login code emails
+    RESEND_API_KEY: process.env.RESEND_API_KEY || '',
+    MAIL_FROM: process.env.MAIL_FROM || 'RyeCentral Tasting <onboarding@resend.dev>',
+
   // Judge.me API (private token for review submission)
   JUDGEME_API_TOKEN: process.env.JUDGEME_API_TOKEN || '',
 
