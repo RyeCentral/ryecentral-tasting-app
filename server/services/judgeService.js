@@ -180,7 +180,11 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
   const numericId = product.id.toString().replace(/^gid:\/\/shopify\/Product\//, '');
 
   // Build flat payload — Judge.me POST /reviews uses flat structure.
-  // Key: use "product_external_id" (not "external_id") for Shopify product ID.
+  // CRITICAL: Per Judge.me API docs (https://judge.me/api/docs), for POST /reviews
+  // the "id" field in the REQUEST BODY is the External (Shopify) ID of the Product.
+  // This is different from GET endpoints where "id" means Judge.me internal ID.
+  // The docs state: "in the request body of your create requests, id is the external ID"
+  // If blank/omitted, the review is considered a shop-level review.
   const payload = {
     shop_domain: SHOP_DOMAIN,
     api_token: apiToken,
@@ -190,16 +194,19 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
     rating: starRating,
     title,
     body,
-    product_external_id: numericId,
     // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
   };
 
-  // Also set internal Judge.me product ID if we found one
-  if (judgeMeProductId) {
-    payload.id = judgeMeProductId;
+  // Set the Shopify external product ID — this is what Judge.me POST /reviews
+  // uses to associate the review with a product (the "id" field in request body).
+  // Without this, the review becomes a store-level review.
+  if (numericId) {
+    payload.id = parseInt(numericId, 10);
+  } else {
+    console.warn('Judge.me: No Shopify product ID — review will go to store, not product');
   }
 
-  // Include product_url for additional product matching reliability
+  // Include product_url as additional context
   if (product.handle) {
     payload.product_url = `https://${SHOP_DOMAIN}/products/${product.handle}`;
   }
@@ -243,10 +250,46 @@ function previewReview(response, product, guestName) {
   };
 }
 
+// ── Submit Store-Level Review (host feedback) ────────────────────
+
+/**
+ * Submit a store-level review to Judge.me (no product association).
+ * Used for the host's post-event feedback about the tasting app experience.
+ */
+async function submitStoreReview({ apiToken, name, email, rating, title, body }) {
+  const payload = {
+    shop_domain: SHOP_DOMAIN,
+    api_token: apiToken,
+    platform: 'shopify',
+    name,
+    email,
+    rating: Math.round(rating),
+    title: title || 'Home Tasting Event Feedback',
+    body: body || '',
+    // No "id" field = store-level review (not associated with a product)
+  };
+
+  console.log('Judge.me store review payload:', JSON.stringify({
+    ...payload,
+    api_token: '[REDACTED]',
+  }));
+
+  const url = `${JUDGE_ME_API}/reviews`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await res.json().catch(() => ({}));
+  return { success: true, result };
+}
+
 module.exports = {
   generateReviewTitle,
   generateReviewBody,
   submitReview,
   previewReview,
   getJudgeMeProductId,
+  submitStoreReview,
 };

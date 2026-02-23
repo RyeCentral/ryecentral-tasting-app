@@ -16,7 +16,7 @@ class TastingEvent {
     this.adminId = adminId;
     this.name = name || 'Rye Tasting Night';
     this.createdAt = new Date().toISOString();
-    this.status = 'setup'; // setup | active | scoring | complete
+    this.status = 'setup'; // setup | active | scoring | complete | ended
 
     // Bottles selected by admin (array of transformed tasting products)
     this.bottles = [];

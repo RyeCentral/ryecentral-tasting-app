@@ -38,7 +38,7 @@ export default function AdminSetup() {
   useEffect(() => {
     api.getEvents()
       .then((data) => {
-        const events = data.events || [];
+        const events = (data.events || []).filter((e) => e.status !== 'ended');
         setExistingEvents(events);
       })
       .catch(() => {})
@@ -95,6 +95,12 @@ export default function AdminSetup() {
     setLoading(true);
     setError('');
     try {
+      // Clear any existing bottles first (prevents duplicates when navigating back)
+      if (event.bottles?.length > 0) {
+        for (const bottle of [...event.bottles].reverse()) {
+          await api.removeBottle(event.id, bottle.letter);
+        }
+      }
       for (const product of selectedProducts) {
         await api.addBottle(event.id, product);
       }
@@ -129,6 +135,36 @@ export default function AdminSetup() {
   // Go back a step
   const goBack = (target) => setStep(target);
 
+  // Handle clicking a completed step in the progress bar
+  const handleStepClick = (stepKey) => {
+    // Only allow navigating to completed steps (before current)
+    const targetIndex = STEPS.findIndex((s) => s.key === stepKey);
+    if (targetIndex < stepIndex) {
+      setStep(stepKey);
+    }
+  };
+
+  // Handle browser back button — go to previous setup step instead of leaving
+  useEffect(() => {
+    if (step === 'name') return; // Don't intercept on first step
+
+    const handlePopState = (e) => {
+      e.preventDefault();
+      const currentIdx = STEPS.findIndex((s) => s.key === step);
+      if (currentIdx > 0) {
+        setStep(STEPS[currentIdx - 1].key);
+      }
+    };
+
+    // Push a state entry so the browser back button triggers popstate
+    window.history.pushState({ step }, '');
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [step]);
+
   // Determine step index for indicator
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -137,7 +173,7 @@ export default function AdminSetup() {
       <TopBar eventName={event?.name} />
       <div className="page">
         <div className="container">
-          <StepIndicator steps={STEPS} currentIndex={stepIndex} />
+          <StepIndicator steps={STEPS} currentIndex={stepIndex} onStepClick={handleStepClick} />
 
           {error && <div className="card" style={{ marginBottom: 16 }}><p className="error-msg">{error}</p></div>}
 
@@ -172,13 +208,31 @@ export default function AdminSetup() {
                           {evt.guestCount > 0 && ` · ${evt.guestCount} guest${evt.guestCount !== 1 ? 's' : ''}`}
                         </div>
                       </div>
-                      <button
-                        className="btn btn-primary"
-                        style={{ whiteSpace: 'nowrap' }}
-                        onClick={() => resumeEvent(evt)}
-                      >
-                        {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {evt.status === 'setup' && (!evt.guestCount || evt.guestCount === 0) && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#e53e3e', borderColor: '#e53e3e', whiteSpace: 'nowrap' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!window.confirm(`Delete "${evt.name}"? This cannot be undone.`)) return;
+                              try {
+                                await api.deleteEvent(evt.id);
+                                setExistingEvents((prev) => prev.filter((x) => x.id !== evt.id));
+                              } catch (err) { setError(err.message); }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-primary"
+                          style={{ whiteSpace: 'nowrap' }}
+                          onClick={() => resumeEvent(evt)}
+                        >
+                          {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -248,6 +302,7 @@ export default function AdminSetup() {
           {step === 'invite' && event && (
             <InviteShare
               event={event}
+              onBack={() => goBack('prizes')}
             />
           )}
         </div>

@@ -55,6 +55,10 @@ export function deleteEvent(eventId) {
   return request(`/events/${eventId}`, { method: 'DELETE' });
 }
 
+export function endEvent(eventId) {
+  return request(`/events/${eventId}/end`, { method: 'POST' });
+}
+
 // Bottles
 export function addBottle(eventId, product) {
   return request(`/events/${eventId}/bottles`, {
@@ -89,10 +93,10 @@ export function calculateScores(eventId) {
 }
 
 // Guest join
-export function joinByCode(inviteCode, guestName) {
+export function joinByCode(inviteCode, guestName, guestId = null) {
   return request('/events/join-by-code', {
     method: 'POST',
-    body: JSON.stringify({ inviteCode, guestName }),
+    body: JSON.stringify({ inviteCode, guestName, guestId }),
   });
 }
 
@@ -113,5 +117,14 @@ export function submitReview(eventId, { guestId, bottleLetter, guestEmail, edite
   return request(`/events/${eventId}/submit-review`, {
     method: 'POST',
     body: JSON.stringify({ guestId, bottleLetter, guestEmail, editedTitle, editedBody }),
+  });
+}
+
+// ── Host Feedback ──────────────────────────────────────────
+
+export function submitFeedback(eventId, { rating, comment, hostName, hostEmail }) {
+  return request(`/events/${eventId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, comment, hostName, hostEmail }),
   });
 }
