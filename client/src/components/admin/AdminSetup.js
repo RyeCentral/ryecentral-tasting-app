@@ -129,6 +129,36 @@ export default function AdminSetup() {
   // Go back a step
   const goBack = (target) => setStep(target);
 
+  // Handle clicking a completed step in the progress bar
+  const handleStepClick = (stepKey) => {
+    // Only allow navigating to completed steps (before current)
+    const targetIndex = STEPS.findIndex((s) => s.key === stepKey);
+    if (targetIndex < stepIndex) {
+      setStep(stepKey);
+    }
+  };
+
+  // Handle browser back button — go to previous setup step instead of leaving
+  useEffect(() => {
+    if (step === 'name') return; // Don't intercept on first step
+
+    const handlePopState = (e) => {
+      e.preventDefault();
+      const currentIdx = STEPS.findIndex((s) => s.key === step);
+      if (currentIdx > 0) {
+        setStep(STEPS[currentIdx - 1].key);
+      }
+    };
+
+    // Push a state entry so the browser back button triggers popstate
+    window.history.pushState({ step }, '');
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [step]);
+
   // Determine step index for indicator
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -137,7 +167,7 @@ export default function AdminSetup() {
       <TopBar eventName={event?.name} />
       <div className="page">
         <div className="container">
-          <StepIndicator steps={STEPS} currentIndex={stepIndex} />
+          <StepIndicator steps={STEPS} currentIndex={stepIndex} onStepClick={handleStepClick} />
 
           {error && <div className="card" style={{ marginBottom: 16 }}><p className="error-msg">{error}</p></div>}
 
@@ -248,6 +278,7 @@ export default function AdminSetup() {
           {step === 'invite' && event && (
             <InviteShare
               event={event}
+              onBack={() => goBack('prizes')}
             />
           )}
         </div>

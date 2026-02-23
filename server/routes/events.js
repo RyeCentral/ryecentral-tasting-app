@@ -282,6 +282,23 @@ router.post('/:id/end', (req, res) => {
 });
 
 /**
+ * POST /api/events/:id/feedback
+ * Submit host feedback about the tasting app experience
+ */
+router.post('/:id/feedback', (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const { rating, comment } = req.body;
+  console.log(`Host feedback for event "${event.name}" (${req.params.id}): ${rating}/5 stars${comment ? ` — "${comment}"` : ''}`);
+
+  // Store feedback on the event for potential future use
+  event.hostFeedback = { rating, comment, submittedAt: new Date().toISOString() };
+
+  res.json({ success: true });
+});
+
+/**
  * DELETE /api/events/:id
  * Delete an event
  */

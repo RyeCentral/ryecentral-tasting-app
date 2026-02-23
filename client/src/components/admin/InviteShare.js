@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/api';
 
-export default function InviteShare({ event }) {
+export default function InviteShare({ event, onBack }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState(null);
@@ -62,6 +62,11 @@ export default function InviteShare({ event }) {
           </div>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
+            {onBack && (
+              <button className="btn btn-secondary" onClick={onBack}>
+                Back
+              </button>
+            )}
             <button className="btn btn-secondary" onClick={copyLink}>
               {copied ? '✓ Copied!' : 'Copy Link'}
             </button>

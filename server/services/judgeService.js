@@ -180,7 +180,9 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
   const numericId = product.id.toString().replace(/^gid:\/\/shopify\/Product\//, '');
 
   // Build flat payload — Judge.me POST /reviews uses flat structure.
-  // Key: use "product_external_id" (not "external_id") for Shopify product ID.
+  // CRITICAL: Judge.me requires the internal Judge.me product_id to associate
+  // a review with a product. product_external_id does NOT work for POST /reviews.
+  // Ref: https://judge.me/help/en/articles/8409180-using-judge-me-api
   const payload = {
     shop_domain: SHOP_DOMAIN,
     api_token: apiToken,
@@ -190,16 +192,19 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
     rating: starRating,
     title,
     body,
-    product_external_id: numericId,
     // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
   };
 
-  // NOTE: Do NOT set payload.id — in Judge.me's POST /reviews API, "id" is the
-  // REVIEW id (for updating existing reviews), not the product ID. Setting it to
-  // the Judge.me product ID causes the review to not associate with any product.
-  // The product_external_id field is sufficient for product matching.
+  // Set the Judge.me internal product_id — this is the ONLY field that reliably
+  // associates a review with a product in POST /reviews.
+  // (NOT "id" which is the review ID, NOT "product_external_id" which doesn't work)
+  if (judgeMeProductId) {
+    payload.product_id = judgeMeProductId;
+  } else {
+    console.warn('Judge.me: No internal product ID found — review will go to store, not product');
+  }
 
-  // Include product_url for additional product matching reliability
+  // Include product_url as additional context
   if (product.handle) {
     payload.product_url = `https://${SHOP_DOMAIN}/products/${product.handle}`;
   }

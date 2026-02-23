@@ -27,6 +27,10 @@ export default function AdminEventLive({ eventId }) {
   const [leaderboard, setLeaderboard] = useState(null);
   const [showCommunity, setShowCommunity] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [showTastingTips, setShowTastingTips] = useState(false);
 
   // Connect WebSocket
   useEffect(() => {
@@ -133,6 +137,19 @@ export default function AdminEventLive({ eventId }) {
       window.prompt('Copy this link:', joinUrl);
     });
   }, [event?.inviteCode]);
+
+  const handleFeedbackSubmit = useCallback(async () => {
+    if (!feedbackRating) return;
+    try {
+      await api.submitFeedback(eventId, {
+        rating: feedbackRating,
+        comment: feedbackComment,
+      });
+    } catch (err) {
+      console.error('Feedback submission error (non-critical):', err);
+    }
+    setFeedbackSubmitted(true);
+  }, [eventId, feedbackRating, feedbackComment]);
 
   const endEvent = useCallback(async () => {
     if (!window.confirm('End this event? It will be archived and removed from your active events list.')) return;
@@ -270,14 +287,22 @@ export default function AdminEventLive({ eventId }) {
                       )}
                     </div>
 
-                    {/* Toggle community data */}
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ marginTop: 12 }}
-                      onClick={() => setShowCommunity(!showCommunity)}
-                    >
-                      {showCommunity ? 'Hide' : 'Show'} Community Data
-                    </button>
+                    {/* Toggle buttons */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowCommunity(!showCommunity)}
+                      >
+                        {showCommunity ? 'Hide' : 'Show'} Community Data
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowTastingTips(!showTastingTips)}
+                        style={{ borderColor: 'var(--rc-orange)', color: showTastingTips ? '#fff' : 'var(--rc-orange)', background: showTastingTips ? 'var(--rc-orange)' : 'transparent' }}
+                      >
+                        {showTastingTips ? 'Hide' : 'Show'} Host Tips
+                      </button>
+                    </div>
 
                     {showCommunity && currentBottle.product?.community && (
                       <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--rc-gray-300)', borderRadius: 8, fontSize: 13 }}>
@@ -307,6 +332,57 @@ export default function AdminEventLive({ eventId }) {
                             {currentBottle.product.community.palateNotes.join(', ')}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Host Tasting Tips — expert knowledge for the admin */}
+                    {showTastingTips && (
+                      <div style={{ marginTop: 12, padding: 16, border: '2px solid var(--rc-orange)', borderRadius: 12, background: 'var(--rc-orange-light)', fontSize: 13 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--rc-orange)' }}>
+                          Host Tasting Guide
+                        </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Before Each Pour</div>
+                          <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
+                            Have guests cleanse their palate with a sip of water and a plain cracker or bread between pours. This resets taste receptors for a more accurate read on the next bottle.
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>How to Nose</div>
+                          <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
+                            Cup the glass and swirl gently. Nose from a distance first (2-3 inches), then bring closer. Take short sniffs with your mouth slightly open. Let the alcohol burn fade before going back — the second and third passes reveal the real character.
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>How to Taste</div>
+                          <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
+                            Take a small sip and let it coat your entire tongue. Wait 15-20 seconds before the second sip — you'll pick up completely different notes. The finish (aftertaste) is just as important: does it linger? Does it change?
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>What the Flavor Profiles Mean</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, color: 'var(--rc-gray-700)' }}>
+                            <div><strong>Sweetness:</strong> Caramel, honey, butterscotch, brown sugar</div>
+                            <div><strong>Rye Spice:</strong> Black pepper, cinnamon, clove, baking spice</div>
+                            <div><strong>Herbal/Mint:</strong> Dill, eucalyptus, fresh herbs, menthol</div>
+                            <div><strong>Fruit:</strong> Cherry, apple, citrus, dried fruit</div>
+                            <div><strong>Oak/Vanilla:</strong> Wood char, vanilla extract, coconut</div>
+                            <div><strong>Body:</strong> Thin/watery vs thick/chewy mouthfeel</div>
+                            <div><strong>Heat:</strong> Alcohol burn intensity — higher proof = more heat</div>
+                            <div><strong>Finish:</strong> How long flavors linger after swallowing</div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>Price Guessing Tips</div>
+                          <div style={{ color: 'var(--rc-gray-700)', lineHeight: 1.5 }}>
+                            Higher proof often means higher price. Complex, layered flavors and long finishes typically indicate more expensive bottles. Very smooth, easy-drinking pours can go either way — could be a well-crafted budget bottle or a premium aged release.
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -383,7 +459,61 @@ export default function AdminEventLive({ eventId }) {
                     prizes={event.prizes}
                     startDelay={3000}
                   />
-                  <div style={{ marginTop: 24, textAlign: 'center' }}>
+                  {/* Host Feedback Card */}
+                  <div className="card" style={{ marginTop: 24 }}>
+                    {feedbackSubmitted ? (
+                      <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>Thank you!</div>
+                        <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
+                          Your feedback helps us improve the tasting experience.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 style={{ fontSize: 16, marginBottom: 4 }}>How was your event?</h3>
+                        <p style={{ color: 'var(--rc-gray-500)', fontSize: 13, marginBottom: 16 }}>
+                          Rate RyeCentral's Home Rye Whiskey Tasting App
+                        </p>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setFeedbackRating(star)}
+                              style={{
+                                fontSize: 28,
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: star <= feedbackRating ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                                transition: 'color 0.15s',
+                                padding: 2,
+                              }}
+                            >
+                              {star <= feedbackRating ? '\u2605' : '\u2606'}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          className="form-input"
+                          rows={2}
+                          placeholder="Any feedback or suggestions? (optional)"
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          style={{ resize: 'vertical', marginBottom: 12 }}
+                        />
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={handleFeedbackSubmit}
+                          disabled={!feedbackRating}
+                        >
+                          Submit Feedback
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: 16, textAlign: 'center' }}>
                     <button
                       className="btn btn-secondary"
                       onClick={endEvent}

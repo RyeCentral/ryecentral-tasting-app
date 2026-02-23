@@ -119,3 +119,12 @@ export function submitReview(eventId, { guestId, bottleLetter, guestEmail, edite
     body: JSON.stringify({ guestId, bottleLetter, guestEmail, editedTitle, editedBody }),
   });
 }
+
+// ── Host Feedback ──────────────────────────────────────────
+
+export function submitFeedback(eventId, { rating, comment }) {
+  return request(`/events/${eventId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, comment }),
+  });
+}
