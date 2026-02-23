@@ -18,20 +18,6 @@ function saveSession(data) {
   } catch { /* ignore */ }
 }
 
-const SESSION_KEY = 'rc_tasting_session';
-
-function getSavedSession() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
-  } catch { return null; }
-}
-
-function saveSession(data) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-  } catch { /* ignore */ }
-}
-
 export default function GuestJoin() {
   const { inviteCode: urlCode } = useParams();
   const navigate = useNavigate();
