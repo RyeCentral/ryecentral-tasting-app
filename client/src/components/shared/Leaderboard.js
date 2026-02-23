@@ -25,17 +25,18 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
     animationStartedRef.current = true;
 
     // Reveal from last place to first, 600ms apart
+    // Timer index 0 = last place (fires first), index total-1 = 1st place (fires last)
     const total = leaderboard.length;
     const timers = [];
 
-    for (let i = 0; i < total; i++) {
+    for (let step = 0; step < total; step++) {
       timers.push(setTimeout(() => {
-        setRevealedCount(i + 1);
-        if (i === total - 1 && onRevealCompleteRef.current) {
+        setRevealedCount(step + 1);
+        if (step === total - 1 && onRevealCompleteRef.current) {
           // Small extra delay before triggering celebration
           setTimeout(() => onRevealCompleteRef.current?.(), 400);
         }
-      }, (total - 1 - i) * 600 + 500)); // Reverse: last place first
+      }, step * 600 + 500));
     }
 
     return () => timers.forEach(clearTimeout);

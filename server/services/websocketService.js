@@ -273,7 +273,11 @@ function buildPillBoxNotes(realNotes) {
 
   // Get decoys (not in real notes)
   const available = allPossibleNotes.filter((n) => !realSet.has(n));
-  const decoyCount = Math.ceil(realNotes.length * 0.5);
+  // Ensure at least 10 total pills (real + decoy) so the UI looks full,
+  // but also add ~50% decoys when data is abundant
+  const minTotal = 10;
+  const minDecoys = Math.max(4, minTotal - realNotes.length);
+  const decoyCount = Math.max(minDecoys, Math.ceil(realNotes.length * 0.5));
   const decoys = shuffleArray(available).slice(0, decoyCount);
 
   // Combine and shuffle — only send the text, NOT whether it's a decoy

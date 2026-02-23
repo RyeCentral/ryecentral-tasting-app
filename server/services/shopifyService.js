@@ -179,10 +179,12 @@ function stripHtml(html) {
  * Returns just the value part.
  */
 function extractAfterLabel(html, label) {
-  // Match both <strong> and <b> tags, with or without colon
+  // Match both <strong> and <b> tags, with or without colon (inside or outside tag)
   const patterns = [
     new RegExp(`<(?:strong|b)>${label}:?</(?:strong|b)>\\s*(.+?)(?=</li>|$)`, 'is'),
     new RegExp(`<(?:strong|b)>${label}:?\\s*</(?:strong|b)>\\s*(.+?)(?=</li>|$)`, 'is'),
+    // V3: colon outside the tag: <b>Label</b>: value
+    new RegExp(`<(?:strong|b)>${label}</(?:strong|b)>:?\\s*(.+?)(?=</li>|$)`, 'is'),
   ];
 
   for (const pattern of patterns) {
@@ -324,11 +326,40 @@ function parseTastingNotes(html) {
     if (notes.nose || notes.palate || notes.finish) return notes;
   }
 
+  // ── V3 format: <p><b>Nose:</b></p><ul><li>item</li>...</ul> ──
+  // (notes as list items rather than prose)
+  const tastesLikeIdx = html.indexOf('Tastes Like');
+  if (tastesLikeIdx > -1) {
+    const searchSection = html.substring(tastesLikeIdx, tastesLikeIdx + 5000);
+    for (const key of ['nose', 'palate', 'finish']) {
+      const label = key.charAt(0).toUpperCase() + key.slice(1);
+      // Match: <b>Nose:</b></p> followed by <ul>...<li>items</li>...</ul>
+      const listPattern = new RegExp(
+        `<(?:b|strong)>${label}:?</(?:b|strong)>[\\s\\S]*?<ul>([\\s\\S]*?)</ul>`,
+        'i'
+      );
+      const listMatch = searchSection.match(listPattern);
+      if (listMatch) {
+        // Extract all <li> contents and join them
+        const liPattern = /<li>([\s\S]*?)<\/li>/gi;
+        const items = [];
+        let liMatch;
+        while ((liMatch = liPattern.exec(listMatch[1])) !== null) {
+          const text = stripHtml(liMatch[1]).trim();
+          if (text) items.push(text);
+        }
+        if (items.length > 0) {
+          notes[key] = items.join(', ');
+        }
+      }
+    }
+    if (notes.nose || notes.palate || notes.finish) return notes;
+  }
+
   // ── V1 format: <strong>Nose:</strong> text ──
   let searchHtml = html;
-  const tastesIdx = html.indexOf('Tastes Like');
-  if (tastesIdx > -1) {
-    searchHtml = html.substring(tastesIdx, tastesIdx + 5000);
+  if (tastesLikeIdx > -1) {
+    searchHtml = html.substring(tastesLikeIdx, tastesLikeIdx + 5000);
   }
 
   for (const key of ['nose', 'palate', 'finish']) {
@@ -408,6 +439,14 @@ function parseCommunityScore(html) {
   const v1Match = html.match(/Community Score:\s*(\d+(?:\.\d+)?)/i);
   if (v1Match) return parseFloat(v1Match[1]);
 
+  // V3 format: "<b>Score:</b> 4.5 (based on N ratings)" under Community Score heading
+  const commIdx = html.indexOf('Community Score');
+  if (commIdx > -1) {
+    const section = html.substring(commIdx, commIdx + 500);
+    const scoreMatch = section.match(/Score:?\s*<\/(?:b|strong)>\s*(\d+(?:\.\d+)?)/i);
+    if (scoreMatch) return parseFloat(scoreMatch[1]);
+  }
+
   return null;
 }
 
@@ -452,8 +491,10 @@ function parseQuickFacts(html) {
     if (facts.proof || facts.age || facts.mashBill) return facts;
   }
 
-  // ── V1 format: <strong>Label:</strong> value in <ul>/<li> ──
-  const factsIdx = html.indexOf('Quick Facts');
+  // ── V1/V3 format: <strong>Label:</strong> or <b>Label</b>: value in <ul>/<li> ──
+  // V1 uses "Quick Facts", V3 uses "At-a-glance"
+  let factsIdx = html.indexOf('Quick Facts');
+  if (factsIdx === -1) factsIdx = html.indexOf('At-a-glance');
   if (factsIdx === -1) return facts;
 
   const sectionEnd = html.indexOf('</ul>', factsIdx);

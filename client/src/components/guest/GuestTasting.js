@@ -24,6 +24,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [prizes, setPrizes] = useState([]);
   const [submitted, setSubmitted] = useState({}); // { letter: true }
   const [celebrate, setCelebrate] = useState(false);
+  const handleRevealComplete = useCallback(() => setCelebrate(true), []);
   const [favoriteBottle, setFavoriteBottle] = useState('');
   const [favoriteSubmitted, setFavoriteSubmitted] = useState(false);
 
@@ -33,7 +34,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [flavorProfile, setFlavorProfile] = useState({});
   const [priceGuess, setPriceGuess] = useState('');
   const [bottleGuess, setBottleGuess] = useState('');
-  const [rating, setRating] = useState(3);
+  const [rating, setRating] = useState(3.0);
   const [freeNotes, setFreeNotes] = useState('');
 
   // Connect WebSocket
@@ -112,7 +113,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     setFlavorProfile({});
     setPriceGuess('');
     setBottleGuess('');
-    setRating(3);
+    setRating(3.0);
     setFreeNotes('');
   }, []);
 
@@ -237,7 +238,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               leaderboard={leaderboard}
               prizes={prizes}
               highlightGuestId={guestId}
-              onRevealComplete={() => setCelebrate(true)}
+              onRevealComplete={handleRevealComplete}
             />
             <ReviewPoster
               eventId={eventId}
@@ -278,11 +279,29 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               <div className="card" style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
                 <h3>Response Submitted!</h3>
-                <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
-                  {allBottlesTasted
-                    ? 'All bottles tasted! Pick your favorite while the host wraps up.'
-                    : 'Waiting for the host to advance to the next bottle...'}
-                </p>
+                {allBottlesTasted ? (
+                  <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
+                    All bottles tasted! Pick your favorite while the host wraps up.
+                  </p>
+                ) : (
+                  <div style={{
+                    marginTop: 16,
+                    padding: '16px 20px',
+                    background: 'var(--rc-orange-light)',
+                    borderRadius: 12,
+                    border: '2px solid var(--rc-orange)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <div className="spinner" style={{ width: 20, height: 20 }} />
+                      <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--rc-orange)' }}>
+                        Waiting for the host...
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--rc-gray-500)', fontSize: 13, marginTop: 8, marginBottom: 0 }}>
+                      Sit tight — the next bottle is coming up shortly!
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Favorite Bottle Prompt — shows after all bottles tasted */}
@@ -365,6 +384,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                       </button>
                     ))}
                   </div>
+                  <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 10, marginBottom: 0, fontStyle: 'italic' }}>
+                    TIP: Cup the glass, swirl gently, and take short sniffs. Let the alcohol fade before nosing again.
+                  </p>
                 </div>
               )}
 
@@ -394,6 +416,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                       </button>
                     ))}
                   </div>
+                  <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 10, marginBottom: 0, fontStyle: 'italic' }}>
+                    TIP: Take a small sip and let it coat your tongue. Wait 20 seconds, then sip again — you'll pick up different notes.
+                  </p>
                 </div>
               )}
 
@@ -439,14 +464,14 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      Rating (out of 5)
+                      Rating (out of 5.0)
                     </label>
                     <input
                       className="form-input"
                       type="number"
                       min="1"
                       max="5"
-                      step="0.5"
+                      step="0.1"
                       value={rating}
                       onChange={(e) => setRating(parseFloat(e.target.value))}
                     />

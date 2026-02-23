@@ -1,7 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import * as api from '../../services/api';
+
+const SESSION_KEY = 'rc_tasting_session';
+
+function getSavedSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+  } catch { return null; }
+}
+
+function saveSession(data) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
 
 export default function GuestJoin() {
   const { inviteCode: urlCode } = useParams();
@@ -10,6 +24,37 @@ export default function GuestJoin() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(!!urlCode); // Check for saved session if we have a code
+
+  // On mount, try to restore a saved session for this invite code
+  useEffect(() => {
+    if (!urlCode) { setChecking(false); return; }
+
+    const saved = getSavedSession();
+    if (saved && saved.inviteCode === urlCode.toUpperCase() && saved.guestId && saved.eventId) {
+      // Try to rejoin with saved credentials
+      api.joinByCode(urlCode.toUpperCase(), saved.guestName, saved.guestId)
+        .then((result) => {
+          const eventId = result.event.id;
+          const guestId = result.guest.id;
+          const guestName = encodeURIComponent(result.guest.name);
+          // Update saved session in case anything changed
+          saveSession({
+            inviteCode: urlCode.toUpperCase(),
+            eventId,
+            guestId,
+            guestName: result.guest.name,
+          });
+          navigate(`/tasting/${eventId}?guestId=${guestId}&name=${guestName}`, { replace: true });
+        })
+        .catch(() => {
+          // Session expired or event gone — let them join fresh
+          setChecking(false);
+        });
+    } else {
+      setChecking(false);
+    }
+  }, [urlCode, navigate]);
 
   const handleJoin = async (e) => {
     e.preventDefault();
@@ -18,16 +63,40 @@ export default function GuestJoin() {
     setError('');
     try {
       const result = await api.joinByCode(code.trim().toUpperCase(), name.trim());
-      // Navigate to the live tasting screen with guest credentials
       const eventId = result.event.id;
       const guestId = result.guest.id;
       const guestName = encodeURIComponent(result.guest.name);
+
+      // Save session for future reconnections
+      saveSession({
+        inviteCode: code.trim().toUpperCase(),
+        eventId,
+        guestId,
+        guestName: result.guest.name,
+      });
+
       navigate(`/tasting/${eventId}?guestId=${guestId}&name=${guestName}`);
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
   };
+
+  if (checking) {
+    return (
+      <>
+        <TopBar />
+        <div className="page">
+          <div className="container-narrow" style={{ margin: '0 auto' }}>
+            <div className="loading">
+              <div className="spinner" />
+              Reconnecting...
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

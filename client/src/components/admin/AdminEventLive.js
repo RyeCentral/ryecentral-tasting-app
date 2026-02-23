@@ -4,6 +4,7 @@ import TopBar from '../shared/TopBar';
 import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
 import wsService from '../../services/websocket';
+import * as api from '../../services/api';
 
 const FLAVOR_LABELS = {
   sweetness: 'Sweetness',
@@ -25,6 +26,7 @@ export default function AdminEventLive({ eventId }) {
   const [leaderboard, setLeaderboard] = useState(null);
   const [showCommunity, setShowCommunity] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const handleRevealComplete = useCallback(() => setCelebrate(true), []);
 
   // Connect WebSocket
   useEffect(() => {
@@ -115,6 +117,16 @@ export default function AdminEventLive({ eventId }) {
   const calculateScores = useCallback(() => {
     wsService.send({ type: 'event:calculate-scores' });
   }, []);
+
+  const endEvent = useCallback(async () => {
+    if (!window.confirm('End this event? It will be archived and removed from your active events list.')) return;
+    try {
+      await api.endEvent(eventId);
+      navigate('/admin');
+    } catch (err) {
+      console.error('Failed to end event:', err);
+    }
+  }, [eventId, navigate]);
 
   if (!event) {
     return (
@@ -336,8 +348,17 @@ export default function AdminEventLive({ eventId }) {
                   <Leaderboard
                     leaderboard={leaderboard}
                     prizes={event.prizes}
-                    onRevealComplete={() => setCelebrate(true)}
+                    onRevealComplete={handleRevealComplete}
                   />
+                  <div style={{ marginTop: 24, textAlign: 'center' }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={endEvent}
+                      style={{ color: 'var(--rc-red)' }}
+                    >
+                      End Event &amp; Archive
+                    </button>
+                  </div>
                 </>
               )}
             </div>

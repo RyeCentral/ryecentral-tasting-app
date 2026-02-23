@@ -38,7 +38,7 @@ export default function AdminSetup() {
   useEffect(() => {
     api.getEvents()
       .then((data) => {
-        const events = data.events || [];
+        const events = (data.events || []).filter((e) => e.status !== 'ended');
         setExistingEvents(events);
       })
       .catch(() => {})

@@ -55,6 +55,10 @@ export function deleteEvent(eventId) {
   return request(`/events/${eventId}`, { method: 'DELETE' });
 }
 
+export function endEvent(eventId) {
+  return request(`/events/${eventId}/end`, { method: 'POST' });
+}
+
 // Bottles
 export function addBottle(eventId, product) {
   return request(`/events/${eventId}/bottles`, {
@@ -89,10 +93,10 @@ export function calculateScores(eventId) {
 }
 
 // Guest join
-export function joinByCode(inviteCode, guestName) {
+export function joinByCode(inviteCode, guestName, guestId = null) {
   return request('/events/join-by-code', {
     method: 'POST',
-    body: JSON.stringify({ inviteCode, guestName }),
+    body: JSON.stringify({ inviteCode, guestName, guestId }),
   });
 }
 

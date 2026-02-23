@@ -127,12 +127,23 @@ router.post('/:id/join', (req, res) => {
 
 /**
  * POST /api/events/join-by-code
- * Join an event using the invite code
+ * Join an event using the invite code.
+ * If guestId is provided, tries to rejoin as an existing guest first.
  */
 router.post('/join-by-code', (req, res) => {
-  const { inviteCode, guestName } = req.body;
+  const { inviteCode, guestName, guestId } = req.body;
   const event = getEventByInviteCode(inviteCode);
   if (!event) return res.status(404).json({ error: 'Invalid invite code' });
+
+  // Try to rejoin as existing guest
+  if (guestId) {
+    const existingGuest = event.guests.get(guestId);
+    if (existingGuest) {
+      existingGuest.connected = true;
+      return res.json({ guest: existingGuest, event: event.toJSON('guest'), rejoined: true });
+    }
+  }
+
   if (!guestName) return res.status(400).json({ error: 'Guest name is required' });
 
   const guest = event.addGuest(guestName);
@@ -256,6 +267,18 @@ router.post('/:id/submit-review', async (req, res) => {
     console.error('Judge.me submit error:', err);
     res.status(500).json({ error: 'Failed to submit review', message: err.message });
   }
+});
+
+/**
+ * POST /api/events/:id/end
+ * End/close an event (marks it as ended so it no longer appears in the active list)
+ */
+router.post('/:id/end', (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  event.status = 'ended';
+  res.json({ event: event.toJSON('admin') });
 });
 
 /**
