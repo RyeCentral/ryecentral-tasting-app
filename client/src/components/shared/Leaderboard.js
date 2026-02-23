@@ -8,15 +8,9 @@ import React, { useState, useEffect, useRef } from 'react';
  *   highlightGuestId: optional guestId to highlight as "you"
  *   onRevealComplete: called when all entries are shown
  */
-export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId, onRevealComplete }) {
+export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId, onRevealComplete, startDelay = 0 }) {
   const [revealedCount, setRevealedCount] = useState(0);
-  const onRevealCompleteRef = useRef(onRevealComplete);
   const animationStartedRef = useRef(false);
-
-  // Keep the callback ref up to date without triggering effect re-runs
-  useEffect(() => {
-    onRevealCompleteRef.current = onRevealComplete;
-  }, [onRevealComplete]);
 
   useEffect(() => {
     if (!leaderboard?.length) return;
@@ -25,22 +19,18 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
     animationStartedRef.current = true;
 
     // Reveal from last place to first, 600ms apart
-    // Timer index 0 = last place (fires first), index total-1 = 1st place (fires last)
+    // startDelay allows the celebration to play first before revealing
     const total = leaderboard.length;
     const timers = [];
 
     for (let step = 0; step < total; step++) {
       timers.push(setTimeout(() => {
         setRevealedCount(step + 1);
-        if (step === total - 1 && onRevealCompleteRef.current) {
-          // Small extra delay before triggering celebration
-          setTimeout(() => onRevealCompleteRef.current?.(), 400);
-        }
-      }, step * 600 + 500));
+      }, startDelay + step * 600 + 500));
     }
 
     return () => timers.forEach(clearTimeout);
-  }, [leaderboard]);
+  }, [leaderboard, startDelay]);
 
   if (!leaderboard?.length) return null;
 

@@ -21,12 +21,12 @@ export default function AdminEventLive({ eventId }) {
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [guestResponses, setGuestResponses] = useState({}); // { bottleLetter: { guestId: true } }
   const [allRespondedMap, setAllRespondedMap] = useState({}); // { bottleLetter: bool }
   const [leaderboard, setLeaderboard] = useState(null);
   const [showCommunity, setShowCommunity] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
-  const handleRevealComplete = useCallback(() => setCelebrate(true), []);
 
   // Connect WebSocket
   useEffect(() => {
@@ -40,6 +40,9 @@ export default function AdminEventLive({ eventId }) {
         setEvent(msg.event);
         if (msg.leaderboard) {
           setLeaderboard(msg.leaderboard);
+          if (msg.event?.status === 'complete') {
+            setCelebrate(true);
+          }
         }
       }),
 
@@ -82,6 +85,7 @@ export default function AdminEventLive({ eventId }) {
 
       wsService.on('event:complete', (msg) => {
         setLeaderboard(msg.leaderboard);
+        setCelebrate(true); // Fire confetti immediately BEFORE leaderboard reveals
         setEvent((prev) => prev ? { ...prev, status: 'complete' } : prev);
       }),
     ];
@@ -117,6 +121,18 @@ export default function AdminEventLive({ eventId }) {
   const calculateScores = useCallback(() => {
     wsService.send({ type: 'event:calculate-scores' });
   }, []);
+
+  const copyJoinLink = useCallback(() => {
+    if (!event?.inviteCode) return;
+    const joinUrl = `${window.location.origin}/join/${event.inviteCode}`;
+    navigator.clipboard.writeText(joinUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for non-HTTPS contexts
+      window.prompt('Copy this link:', joinUrl);
+    });
+  }, [event?.inviteCode]);
 
   const endEvent = useCallback(async () => {
     if (!window.confirm('End this event? It will be archived and removed from your active events list.')) return;
@@ -165,8 +181,25 @@ export default function AdminEventLive({ eventId }) {
             <span style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
               {connected ? 'Connected' : 'Reconnecting...'}
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--rc-gray-500)' }}>
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--rc-gray-500)' }}>
               Invite code: <strong style={{ color: 'var(--rc-orange)' }}>{event.inviteCode}</strong>
+              <button
+                onClick={copyJoinLink}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: '1px solid var(--rc-orange)',
+                  borderRadius: 6,
+                  background: linkCopied ? 'var(--rc-orange)' : 'transparent',
+                  color: linkCopied ? '#fff' : 'var(--rc-orange)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {linkCopied ? 'Copied!' : 'Copy Join Link'}
+              </button>
             </span>
           </div>
 
@@ -348,7 +381,7 @@ export default function AdminEventLive({ eventId }) {
                   <Leaderboard
                     leaderboard={leaderboard}
                     prizes={event.prizes}
-                    onRevealComplete={handleRevealComplete}
+                    startDelay={3000}
                   />
                   <div style={{ marginTop: 24, textAlign: 'center' }}>
                     <button

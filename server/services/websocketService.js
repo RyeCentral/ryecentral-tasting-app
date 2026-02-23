@@ -78,12 +78,16 @@ function setupWebSocket(server) {
 
       event.setGuestConnected(guestId, true);
 
-      // Send state to guest (include leaderboard if event is complete)
+      // Send state to guest (include leaderboard if event is complete,
+      // include currentBottle if event is active so reconnects work)
       const guestPayload = {
         type: 'sync:state',
         event: event.toJSON('guest'),
         guestId,
       };
+      if (event.status === 'active') {
+        guestPayload.currentBottle = sanitizeBottleForGuest(event.getCurrentBottle(), event);
+      }
       if (event.status === 'complete') {
         guestPayload.leaderboard = event.getLeaderboard();
         guestPayload.prizes = event.prizes;

@@ -194,10 +194,10 @@ async function submitReview({ apiToken, response, product, guestName, guestEmail
     // NOTE: Omitting cf_answers due to known Judge.me duplication bug.
   };
 
-  // Also set internal Judge.me product ID if we found one
-  if (judgeMeProductId) {
-    payload.id = judgeMeProductId;
-  }
+  // NOTE: Do NOT set payload.id — in Judge.me's POST /reviews API, "id" is the
+  // REVIEW id (for updating existing reviews), not the product ID. Setting it to
+  // the Judge.me product ID causes the review to not associate with any product.
+  // The product_external_id field is sufficient for product matching.
 
   // Include product_url for additional product matching reliability
   if (product.handle) {

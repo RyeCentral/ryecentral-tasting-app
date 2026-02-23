@@ -24,7 +24,6 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [prizes, setPrizes] = useState([]);
   const [submitted, setSubmitted] = useState({}); // { letter: true }
   const [celebrate, setCelebrate] = useState(false);
-  const handleRevealComplete = useCallback(() => setCelebrate(true), []);
   const [favoriteBottle, setFavoriteBottle] = useState('');
   const [favoriteSubmitted, setFavoriteSubmitted] = useState(false);
 
@@ -47,8 +46,15 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
       wsService.on('sync:state', (msg) => {
         setEvent(msg.event);
+        // Restore currentBottle from sync payload (handles reconnect/refresh)
+        if (msg.currentBottle) {
+          setCurrentBottle(msg.currentBottle);
+        }
         if (msg.leaderboard) {
           setLeaderboard(msg.leaderboard);
+          if (msg.event?.status === 'complete') {
+            setCelebrate(true);
+          }
         }
         if (msg.prizes) {
           setPrizes(msg.prizes);
@@ -83,6 +89,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       wsService.on('event:complete', (msg) => {
         setLeaderboard(msg.leaderboard);
         setPrizes(msg.prizes || []);
+        setCelebrate(true); // Fire confetti immediately BEFORE leaderboard reveals
         setEvent((prev) => prev ? {
           ...prev,
           status: 'complete',
@@ -238,7 +245,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               leaderboard={leaderboard}
               prizes={prizes}
               highlightGuestId={guestId}
-              onRevealComplete={handleRevealComplete}
+              startDelay={3000}
             />
             <ReviewPoster
               eventId={eventId}
