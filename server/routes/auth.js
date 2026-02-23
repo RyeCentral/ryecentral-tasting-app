@@ -1,111 +1,87 @@
 /**
- * Auth Routes — Shopify Customer Authentication
+ * Auth Routes — Passwordless one-time code login
  *
- * POST /api/auth/login          — Email + password login (classic accounts)
- * POST /api/auth/verify-token   — Verify a Shopify customer access token
- * POST /api/auth/validate       — Validate our app JWT (session check)
+ * POST /api/auth/send-code    — Send a 6-digit code to the user's email
+ * POST /api/auth/verify-code  — Verify the code and issue a JWT
+ * POST /api/auth/validate     — Validate an existing JWT (session check)
  */
 
 const express = require('express');
 const router = express.Router();
 const {
-  createCustomerAccessToken,
-  verifyCustomerToken,
+  generateCode,
+  storeCode,
+  verifyCode,
+  canSendCode,
+  sendCodeEmail,
   issueAppToken,
   verifyAppToken,
 } = require('../services/authService');
 
 /**
- * POST /api/auth/login
- * Authenticate with email + password (for classic Shopify customer accounts).
- * Body: { email, password }
- * Returns: { token, customer }
+ * POST /api/auth/send-code
+ * Send a one-time login code to the given email.
+ * Body: { email }
+ * Returns: { success: true, message }
  */
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+router.post('/send-code', async (req, res) => {
+  const { email } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+
+  // Rate limiting
+  const rateCheck = canSendCode(email);
+  if (!rateCheck.allowed) {
+    return res.status(429).json({
+      error: `Please wait ${rateCheck.waitSeconds} seconds before requesting a new code.`,
+    });
   }
 
   try {
-    // Get Shopify customer access token
-    const shopifyToken = await createCustomerAccessToken(email, password);
-
-    if (!shopifyToken) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    // Fetch customer data to include in our JWT
-    const customer = await verifyCustomerToken(shopifyToken.accessToken);
-
-    if (!customer) {
-      return res.status(401).json({ error: 'Could not verify customer account' });
-    }
-
-    // Issue our app JWT
-    const appToken = issueAppToken(customer, shopifyToken.accessToken);
+    const code = generateCode();
+    storeCode(email, code);
+    await sendCodeEmail(email, code);
 
     res.json({
-      token: appToken,
-      customer: {
-        id: customer.id,
-        email: customer.email,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        displayName: customer.displayName,
-      },
+      success: true,
+      message: 'A login code has been sent to your email.',
     });
   } catch (err) {
-    console.error('Login error:', err.message);
-
-    // If the error is about unidentified customer, give a helpful message
-    if (err.message.includes('Unidentified') || err.message.includes('credentials')) {
-      return res.status(401).json({
-        error: 'Invalid email or password. Make sure you have a RyeCentral account.',
-      });
-    }
-
-    res.status(401).json({ error: err.message || 'Authentication failed' });
+    console.error('Send code error:', err.message);
+    res.status(500).json({ error: 'Failed to send code. Please try again.' });
   }
 });
 
 /**
- * POST /api/auth/verify-token
- * Accept a Shopify customer access token (from client-side Shopify login)
- * and exchange it for our app JWT.
- * Body: { shopifyAccessToken }
+ * POST /api/auth/verify-code
+ * Verify the one-time code and issue a JWT.
+ * Body: { email, code }
  * Returns: { token, customer }
  */
-router.post('/verify-token', async (req, res) => {
-  const { shopifyAccessToken } = req.body;
+router.post('/verify-code', (req, res) => {
+  const { email, code } = req.body;
 
-  if (!shopifyAccessToken) {
-    return res.status(400).json({ error: 'Shopify access token is required' });
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required.' });
   }
 
   try {
-    const customer = await verifyCustomerToken(shopifyAccessToken);
+    verifyCode(email, code);
 
-    if (!customer) {
-      return res.status(401).json({ error: 'Invalid or expired Shopify token' });
-    }
+    // Code is valid — issue JWT
+    const token = issueAppToken(email);
 
-    const appToken = issueAppToken(customer, shopifyAccessToken);
+    const customer = {
+      email: email.toLowerCase().trim(),
+      firstName: email.split('@')[0],
+      displayName: email.split('@')[0],
+    };
 
-    res.json({
-      token: appToken,
-      customer: {
-        id: customer.id,
-        email: customer.email,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        displayName: customer.displayName,
-      },
-    });
+    res.json({ token, customer });
   } catch (err) {
-    console.error('Token verification error:', err.message);
-    res.status(401).json({ error: 'Token verification failed' });
+    res.status(401).json({ error: err.message });
   }
 });
 
@@ -131,10 +107,8 @@ router.post('/validate', (req, res) => {
   res.json({
     valid: true,
     customer: {
-      id: payload.customerId,
       email: payload.email,
       firstName: payload.firstName,
-      lastName: payload.lastName,
       displayName: payload.displayName,
     },
   });

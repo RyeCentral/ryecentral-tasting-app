@@ -1,30 +1,38 @@
 /**
- * LoginPage — Shopify customer account login for the tasting app.
+ * LoginPage — Passwordless one-time code login.
  *
- * Supports two flows:
- *   1. Email + password (classic Shopify accounts)
- *   2. Link to Shopify account login (passwordless / Shop app)
+ * Two-step flow:
+ *   1. Enter email → "Send Code" button
+ *   2. Enter 6-digit code → "Verify" button → signed in
  *
- * Styled to match the RyeCentral brand.
+ * No password needed. Works for new and existing users.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const SHOPIFY_ACCOUNT_URL = 'https://shopify.com/73079357688/account';
-
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { sendCode, verifyCode } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [step, setStep] = useState('email'); // 'email' | 'code'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('login'); // 'login' | 'info'
+  const [codeSent, setCodeSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const codeRefs = useRef([]);
 
-  const handleLogin = async (e) => {
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendTimer]);
+
+  const handleSendCode = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password');
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -32,13 +40,110 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(email.trim(), password.trim());
-      // AuthContext handles redirect via isAuthenticated change
+      await sendCode(email.trim());
+      setCodeSent(true);
+      setStep('code');
+      setResendTimer(60);
+      // Focus first code input
+      setTimeout(() => codeRefs.current[0]?.focus(), 100);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCodeChange = (index, value) => {
+    // Only allow digits
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newCode = [...code];
+    newCode[index] = digit;
+    setCode(newCode);
+    setError('');
+
+    // Auto-advance to next input
+    if (digit && index < 5) {
+      codeRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-submit when all 6 digits entered
+    if (digit && index === 5) {
+      const fullCode = newCode.join('');
+      if (fullCode.length === 6) {
+        handleVerifyCode(fullCode);
+      }
+    }
+  };
+
+  const handleCodeKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !code[index] && index > 0) {
+      codeRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleCodePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length > 0) {
+      const newCode = [...code];
+      for (let i = 0; i < 6; i++) {
+        newCode[i] = pasted[i] || '';
+      }
+      setCode(newCode);
+      // Focus appropriate input
+      const nextEmpty = pasted.length < 6 ? pasted.length : 5;
+      codeRefs.current[nextEmpty]?.focus();
+      // Auto-submit if full code pasted
+      if (pasted.length === 6) {
+        handleVerifyCode(pasted);
+      }
+    }
+  };
+
+  const handleVerifyCode = async (codeStr) => {
+    const fullCode = codeStr || code.join('');
+    if (fullCode.length !== 6) {
+      setError('Please enter the full 6-digit code.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await verifyCode(email.trim(), fullCode);
+      // AuthContext handles state update → ProtectedRoute lets them through
+    } catch (err) {
+      setError(err.message);
+      setCode(['', '', '', '', '', '']);
+      codeRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    setError('');
+    setCode(['', '', '', '', '', '']);
+
+    try {
+      await sendCode(email.trim());
+      setResendTimer(60);
+      codeRefs.current[0]?.focus();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setStep('email');
+    setCode(['', '', '', '', '', '']);
+    setError('');
+    setCodeSent(false);
   };
 
   return (
@@ -51,131 +156,109 @@ export default function LoginPage() {
             <span style={styles.logoText}>RyeCentral</span>
           </div>
           <h1 style={styles.title}>Home Tasting Event</h1>
-          <p style={styles.subtitle}>
-            Sign in with your RyeCentral account to host or join a blind tasting.
-          </p>
         </div>
 
-        {mode === 'login' && (
+        {step === 'email' && (
           <>
-            {/* Login Form */}
-            <form onSubmit={handleLogin} style={styles.form}>
-              {error && (
-                <div style={styles.error}>
-                  {error}
-                </div>
-              )}
+            <p style={styles.subtitle}>
+              Enter your email to sign in or create an account. We'll send you a one-time login code.
+            </p>
+
+            <form onSubmit={handleSendCode} style={styles.form}>
+              {error && <div style={styles.error}>{error}</div>}
 
               <div style={styles.field}>
-                <label style={styles.label} htmlFor="email">Email</label>
+                <label style={styles.label} htmlFor="email">Email address</label>
                 <input
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
                   placeholder="you@example.com"
                   style={styles.input}
                   autoComplete="email"
-                  disabled={loading}
-                />
-              </div>
-
-              <div style={styles.field}>
-                <label style={styles.label} htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your account password"
-                  style={styles.input}
-                  autoComplete="current-password"
+                  autoFocus
                   disabled={loading}
                 />
               </div>
 
               <button
                 type="submit"
-                style={styles.loginBtn}
-                disabled={loading}
+                style={styles.primaryBtn}
+                disabled={loading || !email.trim()}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Sending...' : 'Send Login Code'}
               </button>
             </form>
 
-            {/* Divider */}
-            <div style={styles.divider}>
-              <span style={styles.dividerLine} />
-              <span style={styles.dividerText}>or</span>
-              <span style={styles.dividerLine} />
-            </div>
-
-            {/* Shopify Account Login (passwordless) */}
-            <a
-              href={SHOPIFY_ACCOUNT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.shopifyBtn}
-            >
-              Sign in via Shopify Account
-            </a>
-
-            {/* Help text */}
-            <div style={styles.helpSection}>
-              <button
-                onClick={() => setMode('info')}
-                style={styles.helpLink}
-              >
-                Don't have a RyeCentral account?
-              </button>
-            </div>
+            <p style={styles.hint}>
+              No password needed. Works for new and existing accounts.
+            </p>
           </>
         )}
 
-        {mode === 'info' && (
-          <div style={styles.infoSection}>
-            <h3 style={styles.infoTitle}>Create Your Free Account</h3>
-            <p style={styles.infoText}>
-              To use the Home Tasting Event app, you need a free RyeCentral customer account.
-              Creating one takes just a few seconds.
+        {step === 'code' && (
+          <>
+            <p style={styles.subtitle}>
+              We sent a 6-digit code to<br />
+              <strong style={{ color: 'var(--rc-black)' }}>{email}</strong>
             </p>
 
-            <ol style={styles.steps}>
-              <li style={styles.step}>
-                <strong>Visit</strong>{' '}
-                <a
-                  href={SHOPIFY_ACCOUNT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.link}
-                >
-                  RyeCentral Account Page
-                </a>
-              </li>
-              <li style={styles.step}>
-                Enter your email address
-              </li>
-              <li style={styles.step}>
-                Check your email for a one-time login code
-              </li>
-              <li style={styles.step}>
-                Once logged in, come back here and sign in
-              </li>
-            </ol>
+            {error && <div style={styles.error}>{error}</div>}
 
-            <p style={styles.infoNote}>
-              RyeCentral uses Shopify's passwordless login. You'll receive a
-              one-time code by email each time you sign in — no password needed
-              if you use the Shopify Account option above.
-            </p>
+            {/* 6-digit code input */}
+            <div style={styles.codeContainer} onPaste={handleCodePaste}>
+              {code.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => (codeRefs.current[i] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleCodeChange(i, e.target.value)}
+                  onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                  style={{
+                    ...styles.codeInput,
+                    borderColor: digit ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                  }}
+                  disabled={loading}
+                  autoFocus={i === 0}
+                />
+              ))}
+            </div>
 
             <button
-              onClick={() => setMode('login')}
-              style={styles.backBtn}
+              type="button"
+              onClick={() => handleVerifyCode()}
+              style={styles.primaryBtn}
+              disabled={loading || code.join('').length !== 6}
             >
-              Back to Sign In
+              {loading ? 'Verifying...' : 'Sign In'}
             </button>
-          </div>
+
+            {/* Resend / change email */}
+            <div style={styles.actions}>
+              <button
+                onClick={handleResend}
+                disabled={resendTimer > 0 || loading}
+                style={{
+                  ...styles.textBtn,
+                  opacity: resendTimer > 0 ? 0.5 : 1,
+                }}
+              >
+                {resendTimer > 0 ? `Resend code (${resendTimer}s)` : 'Resend code'}
+              </button>
+              <span style={styles.dot}>·</span>
+              <button onClick={handleBackToEmail} style={styles.textBtn}>
+                Change email
+              </button>
+            </div>
+
+            <p style={styles.hint}>
+              Check your inbox and spam folder. The code expires in 10 minutes.
+            </p>
+          </>
         )}
 
         {/* Footer */}
@@ -214,7 +297,7 @@ const styles = {
   },
   header: {
     textAlign: 'center',
-    marginBottom: 'var(--space-lg)',
+    marginBottom: 8,
   },
   logo: {
     display: 'flex',
@@ -241,10 +324,12 @@ const styles = {
     marginTop: 4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: 'var(--rc-gray-500)',
     marginTop: 8,
+    marginBottom: 20,
     lineHeight: 1.5,
+    textAlign: 'center',
   },
   form: {
     display: 'flex',
@@ -262,16 +347,16 @@ const styles = {
     color: 'var(--rc-gray-700)',
   },
   input: {
-    padding: '10px 12px',
+    padding: '12px 14px',
     border: '1.5px solid var(--rc-gray-300)',
     borderRadius: 'var(--radius-sm)',
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'var(--font-main)',
     outline: 'none',
     transition: 'border-color 0.2s',
   },
-  loginBtn: {
-    padding: '12px',
+  primaryBtn: {
+    padding: '14px',
     background: 'var(--rc-orange)',
     color: 'var(--rc-white)',
     border: 'none',
@@ -283,36 +368,6 @@ const styles = {
     marginTop: 4,
     transition: 'background 0.2s',
   },
-  divider: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    margin: '20px 0',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    background: 'var(--rc-gray-300)',
-  },
-  dividerText: {
-    fontSize: 12,
-    color: 'var(--rc-gray-500)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  shopifyBtn: {
-    display: 'block',
-    textAlign: 'center',
-    padding: '12px',
-    background: 'var(--rc-black)',
-    color: 'var(--rc-white)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: 14,
-    fontWeight: 600,
-    textDecoration: 'none',
-    fontFamily: 'var(--font-main)',
-    transition: 'opacity 0.2s',
-  },
   error: {
     padding: '10px 12px',
     background: '#fef2f2',
@@ -321,12 +376,36 @@ const styles = {
     color: '#dc2626',
     fontSize: 13,
     lineHeight: 1.4,
-  },
-  helpSection: {
     textAlign: 'center',
-    marginTop: 'var(--space-md)',
+    marginBottom: 4,
   },
-  helpLink: {
+  codeContainer: {
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  codeInput: {
+    width: 48,
+    height: 56,
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: 700,
+    fontFamily: "'Courier New', monospace",
+    border: '2px solid var(--rc-gray-300)',
+    borderRadius: 10,
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    caretColor: 'var(--rc-orange)',
+  },
+  actions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+  },
+  textBtn: {
     background: 'none',
     border: 'none',
     color: 'var(--rc-orange-dark)',
@@ -334,57 +413,18 @@ const styles = {
     cursor: 'pointer',
     textDecoration: 'underline',
     fontFamily: 'var(--font-main)',
+    padding: 0,
   },
-  infoSection: {
-    padding: '4px 0',
+  dot: {
+    color: 'var(--rc-gray-400)',
+    fontSize: 13,
   },
-  infoTitle: {
-    fontFamily: 'var(--font-heading)',
-    fontSize: 18,
-    color: 'var(--rc-black)',
-    marginBottom: 12,
-  },
-  infoText: {
-    fontSize: 14,
-    color: 'var(--rc-gray-700)',
-    lineHeight: 1.6,
-    marginBottom: 16,
-  },
-  steps: {
-    listStyle: 'decimal',
-    paddingLeft: 20,
-    margin: '16px 0',
-  },
-  step: {
-    fontSize: 14,
-    color: 'var(--rc-gray-700)',
-    lineHeight: 1.8,
-  },
-  link: {
-    color: 'var(--rc-orange-dark)',
-    fontWeight: 600,
-  },
-  infoNote: {
+  hint: {
     fontSize: 12,
-    color: 'var(--rc-gray-500)',
-    lineHeight: 1.5,
+    color: 'var(--rc-gray-400)',
+    textAlign: 'center',
     marginTop: 16,
-    padding: '10px 12px',
-    background: 'var(--rc-gray-100)',
-    borderRadius: 'var(--radius-sm)',
-  },
-  backBtn: {
-    display: 'block',
-    width: '100%',
-    padding: '10px',
-    marginTop: 16,
-    background: 'var(--rc-gray-100)',
-    color: 'var(--rc-gray-700)',
-    border: '1px solid var(--rc-gray-300)',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: 14,
-    cursor: 'pointer',
-    fontFamily: 'var(--font-main)',
+    lineHeight: 1.4,
   },
   footer: {
     textAlign: 'center',

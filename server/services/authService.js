@@ -1,118 +1,167 @@
 /**
- * Shopify Customer Authentication Service
+ * Authentication Service — Passwordless one-time code login
  *
- * Uses Shopify's new passwordless customer accounts via the Storefront API.
  * Flow:
- *   1. User enters email → we check if customer exists via Storefront API
- *   2. We redirect/link them to Shopify's customer account login
- *      (passwordless one-time code via email)
- *   3. After auth, we get a customer access token
- *   4. We issue a JWT for the tasting app session
+ *   1. User enters email → POST /api/auth/send-code
+ *   2. Server generates 6-digit code, stores in memory (10 min expiry), emails it
+ *   3. User enters code → POST /api/auth/verify-code
+ *   4. Server verifies code, issues JWT for the tasting app session
  *
- * Since Shopify new customer accounts use a passwordless flow managed by Shopify,
- * we use the Multipass or Storefront API customer access token approach.
- *
- * For simplicity with the new customer accounts (passwordless), we'll:
- *   - Accept a customer access token from the client
- *   - Verify it via Storefront API (fetch customer data)
- *   - Issue our own JWT for the tasting app session
+ * Email is sent via nodemailer (SMTP config in env).
+ * JWT is signed with HMAC-SHA256 (no external dependency).
  */
 
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const config = require('../config/env');
 
-const STOREFRONT_API_URL = `https://${config.SHOPIFY_STORE_DOMAIN}/api/2025-01/graphql.json`;
+// ── In-memory code store ──────────────────────────────────
+// Map<email, { code, expiresAt, attempts }>
+const codeStore = new Map();
+
+const CODE_LENGTH = 6;
+const CODE_EXPIRY_MINUTES = 10;
+const MAX_ATTEMPTS = 5;
+const RATE_LIMIT_SECONDS = 60; // Min time between code sends
+
+// Track last send time to prevent spam
+const lastSendTime = new Map();
 
 /**
- * Execute a Storefront API GraphQL query
+ * Generate a random 6-digit numeric code.
  */
-async function storefrontQuery(query, variables = {}) {
-  const response = await fetch(STOREFRONT_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': config.SHOPIFY_STOREFRONT_TOKEN,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text().catch(() => '');
-    console.error('Shopify Auth API error:', response.status, errBody);
-    throw new Error(`Shopify API error: ${response.status}`);
-  }
-
-  const json = await response.json();
-  return json;
+function generateCode() {
+  return crypto.randomInt(100000, 999999).toString();
 }
 
 /**
- * Create a customer access token using email + password.
- * Note: With new customer accounts (passwordless), this won't work
- * for initial login. We'll use it for customers who have set a password,
- * or use the alternative flow.
+ * Store a code for the given email.
  */
-async function createCustomerAccessToken(email, password) {
-  const query = `
-    mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
-      customerAccessTokenCreate(input: $input) {
-        customerAccessToken {
-          accessToken
-          expiresAt
-        }
-        customerUserErrors {
-          code
-          field
-          message
-        }
-      }
-    }
-  `;
-
-  const data = await storefrontQuery(query, {
-    input: { email, password },
+function storeCode(email, code) {
+  const normalizedEmail = email.toLowerCase().trim();
+  codeStore.set(normalizedEmail, {
+    code,
+    expiresAt: Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000,
+    attempts: 0,
   });
-
-  const result = data.data?.customerAccessTokenCreate;
-  if (result?.customerUserErrors?.length > 0) {
-    const err = result.customerUserErrors[0];
-    throw new Error(err.message || 'Authentication failed');
-  }
-
-  return result?.customerAccessToken;
+  lastSendTime.set(normalizedEmail, Date.now());
 }
 
 /**
- * Verify a customer access token by fetching customer data.
- * Returns customer info if valid, null if expired/invalid.
+ * Verify a code for the given email.
+ * Returns true if valid, throws on error.
  */
-async function verifyCustomerToken(accessToken) {
-  const query = `
-    query getCustomer($token: String!) {
-      customer(customerAccessToken: $token) {
-        id
-        firstName
-        lastName
-        email
-        displayName
-      }
-    }
-  `;
+function verifyCode(email, code) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const entry = codeStore.get(normalizedEmail);
 
-  const data = await storefrontQuery(query, { token: accessToken });
+  if (!entry) {
+    throw new Error('No code found for this email. Please request a new one.');
+  }
 
-  if (data.errors) {
-    console.error('Customer token verification errors:', data.errors);
+  if (Date.now() > entry.expiresAt) {
+    codeStore.delete(normalizedEmail);
+    throw new Error('Code has expired. Please request a new one.');
+  }
+
+  entry.attempts++;
+  if (entry.attempts > MAX_ATTEMPTS) {
+    codeStore.delete(normalizedEmail);
+    throw new Error('Too many attempts. Please request a new code.');
+  }
+
+  if (entry.code !== code.trim()) {
+    throw new Error(`Invalid code. ${MAX_ATTEMPTS - entry.attempts} attempts remaining.`);
+  }
+
+  // Code is valid — clean up
+  codeStore.delete(normalizedEmail);
+  lastSendTime.delete(normalizedEmail);
+  return true;
+}
+
+/**
+ * Check if we can send a new code (rate limiting).
+ */
+function canSendCode(email) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const lastSent = lastSendTime.get(normalizedEmail);
+  if (lastSent && Date.now() - lastSent < RATE_LIMIT_SECONDS * 1000) {
+    const waitSeconds = Math.ceil((RATE_LIMIT_SECONDS * 1000 - (Date.now() - lastSent)) / 1000);
+    return { allowed: false, waitSeconds };
+  }
+  return { allowed: true };
+}
+
+// ── Email sending ─────────────────────────────────────────
+
+let transporter = null;
+
+function getTransporter() {
+  if (transporter) return transporter;
+
+  if (!config.SMTP_HOST || !config.SMTP_USER) {
+    console.warn('⚠️  SMTP not configured. Codes will be logged to console only.');
     return null;
   }
 
-  return data.data?.customer || null;
+  transporter = nodemailer.createTransport({
+    host: config.SMTP_HOST,
+    port: parseInt(config.SMTP_PORT, 10) || 587,
+    secure: parseInt(config.SMTP_PORT, 10) === 465,
+    auth: {
+      user: config.SMTP_USER,
+      pass: config.SMTP_PASS,
+    },
+  });
+
+  return transporter;
 }
 
 /**
- * Simple JWT implementation (no external dependency).
- * Uses HMAC-SHA256 for signing.
+ * Send the one-time code via email.
  */
-const crypto = require('crypto');
+async function sendCodeEmail(email, code) {
+  const transport = getTransporter();
+
+  if (!transport) {
+    // Fallback: log to console (dev mode)
+    console.log(`\n🔐 LOGIN CODE for ${email}: ${code}\n`);
+    return true;
+  }
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-size: 28px;">🥃</span>
+        <span style="font-family: Georgia, serif; font-size: 22px; font-weight: bold; color: #1a1a1a; margin-left: 6px;">RyeCentral</span>
+      </div>
+      <h2 style="text-align: center; font-size: 20px; color: #1a1a1a; margin-bottom: 8px;">Your Login Code</h2>
+      <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 24px;">
+        Enter this code in the Home Tasting Event app to sign in.
+      </p>
+      <div style="text-align: center; padding: 20px; background: #f8f8f8; border-radius: 12px; margin-bottom: 24px;">
+        <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #e8860c;">
+          ${code}
+        </span>
+      </div>
+      <p style="text-align: center; color: #999; font-size: 12px;">
+        This code expires in ${CODE_EXPIRY_MINUTES} minutes. If you didn't request this, you can safely ignore it.
+      </p>
+    </div>
+  `;
+
+  await transport.sendMail({
+    from: config.SMTP_USER,
+    to: email,
+    subject: `${code} — Your RyeCentral Tasting Login Code`,
+    html,
+  });
+
+  return true;
+}
+
+// ── JWT implementation ────────────────────────────────────
 
 function base64url(str) {
   return Buffer.from(str)
@@ -158,7 +207,6 @@ function verifyJWT(token, secret) {
 
     const [headerB64, payloadB64, signature] = parts;
 
-    // Verify signature
     const expectedSig = crypto
       .createHmac('sha256', secret)
       .update(`${headerB64}.${payloadB64}`)
@@ -169,10 +217,8 @@ function verifyJWT(token, secret) {
 
     if (signature !== expectedSig) return null;
 
-    // Parse payload
     const payload = JSON.parse(base64urlDecode(payloadB64));
 
-    // Check expiry
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
@@ -184,17 +230,14 @@ function verifyJWT(token, secret) {
 }
 
 /**
- * Issue a tasting app JWT from verified Shopify customer data.
+ * Issue a tasting app JWT from verified email.
  */
-function issueAppToken(customer, shopifyAccessToken) {
+function issueAppToken(email, displayName) {
   return signJWT(
     {
-      customerId: customer.id,
-      email: customer.email,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      displayName: customer.displayName,
-      shopifyToken: shopifyAccessToken,
+      email: email.toLowerCase().trim(),
+      firstName: displayName || email.split('@')[0],
+      displayName: displayName || email.split('@')[0],
     },
     config.JWT_SECRET,
     24 // hours
@@ -203,7 +246,6 @@ function issueAppToken(customer, shopifyAccessToken) {
 
 /**
  * Verify a tasting app JWT token.
- * Returns the decoded payload or null.
  */
 function verifyAppToken(token) {
   return verifyJWT(token, config.JWT_SECRET);
@@ -211,8 +253,6 @@ function verifyAppToken(token) {
 
 /**
  * Express middleware: require authentication.
- * Checks for Bearer token in Authorization header.
- * Attaches req.customer if valid.
  */
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -231,9 +271,22 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// ── Cleanup stale codes every 5 minutes ───────────────────
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, entry] of codeStore.entries()) {
+    if (now > entry.expiresAt) {
+      codeStore.delete(email);
+    }
+  }
+}, 5 * 60 * 1000);
+
 module.exports = {
-  createCustomerAccessToken,
-  verifyCustomerToken,
+  generateCode,
+  storeCode,
+  verifyCode,
+  canSendCode,
+  sendCodeEmail,
   issueAppToken,
   verifyAppToken,
   requireAuth,

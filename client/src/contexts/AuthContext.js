@@ -1,12 +1,12 @@
 /**
- * AuthContext — Manages Shopify customer authentication state.
+ * AuthContext — Manages passwordless authentication state.
  *
  * Provides:
- *   - customer: the logged-in customer object (or null)
+ *   - customer: the logged-in user object (or null)
  *   - token: the app JWT token
  *   - loading: whether auth state is being verified
- *   - login(email, password): authenticate with credentials
- *   - loginWithShopifyToken(shopifyAccessToken): exchange Shopify token for app session
+ *   - sendCode(email): request a one-time login code
+ *   - verifyCode(email, code): verify code and sign in
  *   - logout(): clear session
  *   - isAuthenticated: boolean shortcut
  */
@@ -63,34 +63,39 @@ export function AuthProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: newToken }));
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const res = await fetch('/api/auth/login', {
+  /**
+   * Request a one-time code be sent to the given email.
+   */
+  const sendCode = useCallback(async (email) => {
+    const res = await fetch('/api/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || 'Login failed');
+      throw new Error(data.error || 'Failed to send code');
     }
 
-    saveSession(data.token, data.customer);
-    return data.customer;
-  }, [saveSession]);
+    return data;
+  }, []);
 
-  const loginWithShopifyToken = useCallback(async (shopifyAccessToken) => {
-    const res = await fetch('/api/auth/verify-token', {
+  /**
+   * Verify a one-time code and sign in.
+   */
+  const verifyCode = useCallback(async (email, code) => {
+    const res = await fetch('/api/auth/verify-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopifyAccessToken }),
+      body: JSON.stringify({ email, code }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || 'Token verification failed');
+      throw new Error(data.error || 'Verification failed');
     }
 
     saveSession(data.token, data.customer);
@@ -107,8 +112,8 @@ export function AuthProvider({ children }) {
     customer,
     token,
     loading,
-    login,
-    loginWithShopifyToken,
+    sendCode,
+    verifyCode,
     logout,
     isAuthenticated: !!customer,
   };
