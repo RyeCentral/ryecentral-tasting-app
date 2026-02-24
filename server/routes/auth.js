@@ -17,6 +17,7 @@ const {
   issueAppToken,
   verifyAppToken,
 } = require('../services/authService');
+const { findOrCreateShopifyCustomer } = require('../services/shopifyCustomerService');
 
 /**
  * POST /api/auth/send-code
@@ -60,7 +61,7 @@ router.post('/send-code', async (req, res) => {
  * Body: { email, code }
  * Returns: { token, customer }
  */
-router.post('/verify-code', (req, res) => {
+router.post('/verify-code', async (req, res) => {
   const { email, code } = req.body;
 
   if (!email || !code) {
@@ -80,6 +81,11 @@ router.post('/verify-code', (req, res) => {
     };
 
     res.json({ token, customer });
+
+    // Fire-and-forget: create Shopify customer (don't block login response)
+    findOrCreateShopifyCustomer(email).catch(err =>
+      console.error('Shopify customer creation error:', err.message)
+    );
   } catch (err) {
     res.status(401).json({ error: err.message });
   }
