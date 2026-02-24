@@ -2,8 +2,8 @@
  * LoginPage — Passwordless one-time code login.
  *
  * Two-step flow:
- *   1. Enter email → "Send Code" button
- *   2. Enter 6-digit code → "Verify" button → signed in
+ * 1. Enter email → "Send Code" button
+ * 2. Enter 6-digit code → "Verify" button → signed in
  *
  * No password needed. Works for new and existing users.
  */
@@ -193,6 +193,10 @@ export default function LoginPage() {
 
             <p style={styles.hint}>
               No password needed. Works for new and existing accounts.
+            </p>
+            <p style={styles.consent}>
+              By signing in, you agree to receive occasional emails from RyeCentral.
+              You can unsubscribe at any time.
             </p>
           </>
         )}
@@ -425,6 +429,14 @@ const styles = {
     textAlign: 'center',
     marginTop: 16,
     lineHeight: 1.4,
+  },
+  consent: {
+    fontSize: 11,
+    color: 'var(--rc-gray-400)',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 1.4,
+    fontStyle: 'italic',
   },
   footer: {
     textAlign: 'center',
