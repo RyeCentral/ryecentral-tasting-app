@@ -17,10 +17,11 @@ const STOREFRONT_TOKEN = env.SHOPIFY_STOREFRONT_TOKEN;
  */
 async function findOrCreateShopifyCustomer(email) {
   const cleanEmail = email.toLowerCase().trim();
-  const firstName = cleanEmail.split('@')[0];
+  const firstName = cleanEmail.split('@')[0].slice(0, 40);
 
-  // Generate a random password (user won't need it — we use passwordless auth)
-  const randomPassword = crypto.randomBytes(24).toString('hex');
+  // Generate a random password ≤ 40 chars (Shopify max)
+  // User won't need it — we use passwordless auth
+  const randomPassword = crypto.randomBytes(16).toString('hex'); // 32 chars
 
   const mutation = `
     mutation customerCreate($input: CustomerCreateInput!) {
@@ -73,6 +74,13 @@ async function findOrCreateShopifyCustomer(email) {
     if (errors.length > 0 && errors.some(e => e.code === 'TAKEN')) {
       console.log(`Shopify customer already exists: ${cleanEmail}`);
       return { created: false, alreadyExists: true };
+    }
+
+    // CUSTOMER_DISABLED means customer was created but needs email verification
+    // This is a SUCCESS — the customer exists in Shopify with marketing consent
+    if (errors.length > 0 && errors.some(e => e.code === 'CUSTOMER_DISABLED')) {
+      console.log(`Shopify customer created (pending activation): ${cleanEmail}`);
+      return { created: true, pendingActivation: true };
     }
 
     if (errors.length > 0) {
