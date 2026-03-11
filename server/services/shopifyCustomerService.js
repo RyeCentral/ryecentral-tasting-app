@@ -11,12 +11,25 @@ const STOREFRONT_URL = `https://${env.SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.
 const STOREFRONT_TOKEN = env.SHOPIFY_STOREFRONT_TOKEN;
 
 /**
+ * In-memory set of emails we've already processed.
+  * Prevents calling customerCreate on every login — only calls for new emails.
+   * Resets on server restart, which is fine: worst case we call once more after deploy.
+    */
+const knownEmails = new Set();
+
+/**
  * Create a customer in Shopify via Storefront API.
  * If the customer already exists (email taken), that's fine — we just log it.
  * Sets acceptsMarketing to true for email subscription.
  */
 async function findOrCreateShopifyCustomer(email) {
   const cleanEmail = email.toLowerCase().trim();
+
+    // Skip if we already know about this email (avoids repeat activation emails)
+    if (knownEmails.has(cleanEmail)) {
+          console.log(`Shopify customer already known (skipping API call): ${cleanEmail}`);
+          return { created: false, alreadyKnown: true };
+    }
   const firstName = cleanEmail.split('@')[0].slice(0, 40);
 
   // Generate a random password ≤ 40 chars (Shopify max)
@@ -73,6 +86,7 @@ async function findOrCreateShopifyCustomer(email) {
     // If customer already exists, that's expected and fine
     if (errors.length > 0 && errors.some(e => e.code === 'TAKEN')) {
       console.log(`Shopify customer already exists: ${cleanEmail}`);
+            knownEmails.add(cleanEmail);
       return { created: false, alreadyExists: true };
     }
 
@@ -80,6 +94,7 @@ async function findOrCreateShopifyCustomer(email) {
     // This is a SUCCESS — the customer exists in Shopify with marketing consent
     if (errors.length > 0 && errors.some(e => e.code === 'CUSTOMER_DISABLED')) {
       console.log(`Shopify customer created (pending activation): ${cleanEmail}`);
+            knownEmails.add(cleanEmail);
       return { created: true, pendingActivation: true };
     }
 
@@ -89,6 +104,7 @@ async function findOrCreateShopifyCustomer(email) {
     }
 
     console.log(`Shopify customer created: ${cleanEmail} (marketing: true)`);
+        knownEmails.add(cleanEmail);
     return {
       created: true,
       customer: result.customer,
