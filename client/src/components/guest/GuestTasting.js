@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TopBar from '../shared/TopBar';
 import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
@@ -26,6 +26,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [celebrate, setCelebrate] = useState(false);
   const [favoriteBottle, setFavoriteBottle] = useState('');
   const [favoriteSubmitted, setFavoriteSubmitted] = useState(false);
+    const favoriteRef = useRef(null);
 
   // Form state for current bottle
   const [selectedNose, setSelectedNose] = useState([]);
@@ -171,6 +172,15 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   // Check if all bottles have been tasted (for favorite prompt)
   const allBottlesTasted = event?.bottleCount && Object.keys(submitted).length >= event.bottleCount;
 
+    // Auto-scroll to favorite section on mobile when all bottles tasted
+    useEffect(() => {
+          if (allBottlesTasted && !favoriteSubmitted && favoriteRef.current) {
+                  setTimeout(() => {
+                            favoriteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 300);
+          }
+    }, [allBottlesTasted, favoriteSubmitted]);
+
   // ── Render ────────────────────────────────────────────
 
   if (!event) {
@@ -313,7 +323,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
               {/* Favorite Bottle Prompt — shows after all bottles tasted */}
               {allBottlesTasted && !favoriteSubmitted && (
-                <div className="card" style={{ marginTop: 16, textAlign: 'center' }}>
+                <div className="card" ref={favoriteRef} style={{ marginTop: 16, textAlign: 'center' }}>
                   <div style={{ fontSize: 40, marginBottom: 8 }}>❤️</div>
                   <h3 style={{ marginBottom: 8 }}>Pick Your Favorite!</h3>
                   <p style={{ color: 'var(--rc-gray-500)', fontSize: 14, marginBottom: 16 }}>
