@@ -12,7 +12,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { sendCode, verifyCode } = useAuth();
+  const { sendCode, verifyCode, adminGrant } = useAuth();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [step, setStep] = useState('email'); // 'email' | 'code'
@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [showAdminBypass, setShowAdminBypass] = useState(false);
+  const [adminKey, setAdminKey] = useState('');
   const codeRefs = useRef([]);
 
   // Countdown timer for resend
@@ -35,10 +37,8 @@ export default function LoginPage() {
       setError('Please enter a valid email address.');
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
       await sendCode(email.trim());
       setCodeSent(true);
@@ -90,9 +90,11 @@ export default function LoginPage() {
         newCode[i] = pasted[i] || '';
       }
       setCode(newCode);
+
       // Focus appropriate input
       const nextEmpty = pasted.length < 6 ? pasted.length : 5;
       codeRefs.current[nextEmpty]?.focus();
+
       // Auto-submit if full code pasted
       if (pasted.length === 6) {
         handleVerifyCode(pasted);
@@ -106,10 +108,8 @@ export default function LoginPage() {
       setError('Please enter the full 6-digit code.');
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
       await verifyCode(email.trim(), fullCode);
       // AuthContext handles state update → ProtectedRoute lets them through
@@ -127,7 +127,6 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     setCode(['', '', '', '', '', '']);
-
     try {
       await sendCode(email.trim());
       setResendTimer(60);
@@ -144,6 +143,25 @@ export default function LoginPage() {
     setCode(['', '', '', '', '', '']);
     setError('');
     setCodeSent(false);
+    setShowAdminBypass(false);
+    setAdminKey('');
+  };
+
+  const handleAdminGrant = async () => {
+    if (!adminKey.trim()) {
+      setError('Please enter the admin key.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await adminGrant(email.trim(), adminKey.trim());
+      // AuthContext handles state update → ProtectedRoute lets them through
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -161,7 +179,8 @@ export default function LoginPage() {
         {step === 'email' && (
           <>
             <p style={styles.subtitle}>
-              Enter your email to sign in or create an account. We'll send you a one-time login code.
+              Enter your email to sign in or create an account.
+              We'll send you a one-time login code.
             </p>
 
             <form onSubmit={handleSendCode} style={styles.form}>
@@ -210,58 +229,105 @@ export default function LoginPage() {
 
             {error && <div style={styles.error}>{error}</div>}
 
-            {/* 6-digit code input */}
-            <div style={styles.codeContainer} onPaste={handleCodePaste}>
-              {code.map((digit, i) => (
+            {!showAdminBypass && (
+              <>
+                {/* 6-digit code input */}
+                <div style={styles.codeContainer} onPaste={handleCodePaste}>
+                  {code.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => (codeRefs.current[i] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleCodeChange(i, e.target.value)}
+                      onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                      style={{
+                        ...styles.codeInput,
+                        borderColor: digit ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                      }}
+                      disabled={loading}
+                      autoFocus={i === 0}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleVerifyCode()}
+                  style={styles.primaryBtn}
+                  disabled={loading || code.join('').length !== 6}
+                >
+                  {loading ? 'Verifying...' : 'Sign In'}
+                </button>
+
+                {/* Resend / change email */}
+                <div style={styles.actions}>
+                  <button
+                    onClick={handleResend}
+                    disabled={resendTimer > 0 || loading}
+                    style={{
+                      ...styles.textBtn,
+                      opacity: resendTimer > 0 ? 0.5 : 1,
+                    }}
+                  >
+                    {resendTimer > 0
+                      ? `Resend code (${resendTimer}s)`
+                      : 'Resend code'}
+                  </button>
+                  <span style={styles.dot}>·</span>
+                  <button onClick={handleBackToEmail} style={styles.textBtn}>
+                    Change email
+                  </button>
+                </div>
+
+                <p style={styles.hint}>
+                  Check your inbox and spam folder. The code expires in 10 minutes.
+                </p>
+              </>
+            )}
+
+            {/* Admin bypass section */}
+            {showAdminBypass && (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ fontSize: 13, color: 'var(--rc-gray-500)', marginBottom: 12, textAlign: 'center', lineHeight: 1.4 }}>
+                  Ask the event host to enter the admin key below to grant access without a code.
+                </p>
                 <input
-                  key={i}
-                  ref={(el) => (codeRefs.current[i] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleCodeChange(i, e.target.value)}
-                  onKeyDown={(e) => handleCodeKeyDown(i, e)}
-                  style={{
-                    ...styles.codeInput,
-                    borderColor: digit ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
-                  }}
+                  type="password"
+                  value={adminKey}
+                  onChange={(e) => { setAdminKey(e.target.value); setError(''); }}
+                  placeholder="Admin key"
+                  style={{ ...styles.input, marginBottom: 10 }}
+                  autoFocus
                   disabled={loading}
-                  autoFocus={i === 0}
                 />
-              ))}
+                <button
+                  onClick={handleAdminGrant}
+                  style={{ ...styles.primaryBtn, background: 'var(--rc-gray-700)' }}
+                  disabled={loading || !adminKey.trim()}
+                >
+                  {loading ? 'Granting access...' : 'Grant Access'}
+                </button>
+                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                  <button onClick={() => { setShowAdminBypass(false); setAdminKey(''); setError(''); }} style={styles.textBtn}>
+                    Back to code entry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ textAlign: 'center', marginTop: showAdminBypass ? 0 : 12 }}>
+              {!showAdminBypass && (
+                <button
+                  onClick={() => { setShowAdminBypass(true); setError(''); }}
+                  style={{ ...styles.textBtn, fontSize: 12, color: 'var(--rc-gray-400)' }}
+                >
+                  Can't receive the code?
+                </button>
+              )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => handleVerifyCode()}
-              style={styles.primaryBtn}
-              disabled={loading || code.join('').length !== 6}
-            >
-              {loading ? 'Verifying...' : 'Sign In'}
-            </button>
-
-            {/* Resend / change email */}
-            <div style={styles.actions}>
-              <button
-                onClick={handleResend}
-                disabled={resendTimer > 0 || loading}
-                style={{
-                  ...styles.textBtn,
-                  opacity: resendTimer > 0 ? 0.5 : 1,
-                }}
-              >
-                {resendTimer > 0 ? `Resend code (${resendTimer}s)` : 'Resend code'}
-              </button>
-              <span style={styles.dot}>·</span>
-              <button onClick={handleBackToEmail} style={styles.textBtn}>
-                Change email
-              </button>
-            </div>
-
-            <p style={styles.hint}>
-              Check your inbox and spam folder. The code expires in 10 minutes.
-            </p>
           </>
         )}
 
