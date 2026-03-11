@@ -120,4 +120,29 @@ router.post('/validate', (req, res) => {
   });
 });
 
+/**
+ * POST /api/auth/admin-grant
+  * Admin bypass: issue a JWT for any email without requiring a code.
+   * Body: { email, adminKey }
+    */
+router.post('/admin-grant', (req, res) => {
+    const { email, adminKey } = req.body;
+    if (!email || !adminKey) {
+          return res.status(400).json({ error: 'Email and adminKey are required.' });
+    }
+    if (adminKey !== process.env.ADMIN_KEY) {
+          return res.status(403).json({ error: 'Invalid admin key.' });
+    }
+    const cleanEmail = email.toLowerCase().trim();
+    const token = issueAppToken(cleanEmail);
+    // Fire-and-forget Shopify customer creation
+    findOrCreateShopifyCustomer(cleanEmail).catch(() => {});
+    const customer = {
+          email: cleanEmail,
+          firstName: cleanEmail.split('@')[0],
+          displayName: cleanEmail.split('@')[0],
+    };
+    res.json({ token, customer });
+});
+
 module.exports = router;
