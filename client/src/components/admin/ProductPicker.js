@@ -10,7 +10,7 @@ export default function ProductPicker({ selectedProducts, onToggleProduct, onCon
   useEffect(() => {
     let cancelled = false;
     setFetching(true);
-    api.getProducts()
+    api.getProducts(true)
       .then((data) => {
         if (!cancelled) setProducts(data.products || []);
       })
