@@ -13,12 +13,15 @@ const CACHE_TTL = 10 * 60 * 1000;
 
 /**
  * GET /api/products
- * Returns all review products available for tasting events
+ * Returns all review products available for tasting events.
+ * Pass ?fresh=true to bypass cache and get latest from Shopify.
  */
 router.get('/', async (req, res) => {
   try {
+    const forceFresh = req.query.fresh === 'true';
     const now = Date.now();
-    if (productCache && now - cacheTimestamp < CACHE_TTL) {
+
+    if (!forceFresh && productCache && now - cacheTimestamp < CACHE_TTL) {
       return res.json({ products: productCache, cached: true });
     }
 
