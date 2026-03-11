@@ -28,17 +28,17 @@ async function request(path, options = {}) {
   const url = `${BASE}${path}`;
 
   // Build headers — include auth token if available
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
   const token = getAuthToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
-
+  const res = await fetch(url, { ...options, headers, });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = data?.error || res.statusText;
@@ -49,8 +49,9 @@ async function request(path, options = {}) {
 
 // ── Products ─────────────────────────────────────────────
 
-export function getProducts() {
-  return request('/products');
+export function getProducts(fresh = false) {
+  const query = fresh ? '?fresh=true' : '';
+  return request(`/products${query}`);
 }
 
 export function getProductByHandle(handle) {
@@ -95,7 +96,9 @@ export function addBottle(eventId, product) {
 }
 
 export function removeBottle(eventId, letter) {
-  return request(`/events/${eventId}/bottles/${letter}`, { method: 'DELETE' });
+  return request(`/events/${eventId}/bottles/${letter}`, {
+    method: 'DELETE',
+  });
 }
 
 // Prizes
