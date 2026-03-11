@@ -2,13 +2,14 @@
  * AuthContext — Manages passwordless authentication state.
  *
  * Provides:
- *   - customer: the logged-in user object (or null)
- *   - token: the app JWT token
- *   - loading: whether auth state is being verified
- *   - sendCode(email): request a one-time login code
- *   - verifyCode(email, code): verify code and sign in
- *   - logout(): clear session
- *   - isAuthenticated: boolean shortcut
+ *  - customer: the logged-in user object (or null)
+ *  - token: the app JWT token
+ *  - loading: whether auth state is being verified
+ *  - sendCode(email): request a one-time login code
+ *  - verifyCode(email, code): verify code and sign in
+ *  - adminGrant(email, adminKey): admin bypass without code
+ *  - logout(): clear session
+ *  - isAuthenticated: boolean shortcut
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -72,13 +73,10 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
-
     const data = await res.json();
-
     if (!res.ok) {
       throw new Error(data.error || 'Failed to send code');
     }
-
     return data;
   }, []);
 
@@ -91,13 +89,27 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code }),
     });
-
     const data = await res.json();
-
     if (!res.ok) {
       throw new Error(data.error || 'Verification failed');
     }
+    saveSession(data.token, data.customer);
+    return data.customer;
+  }, [saveSession]);
 
+  /**
+   * Admin bypass: issue a JWT without requiring a code.
+   */
+  const adminGrant = useCallback(async (email, adminKey) => {
+    const res = await fetch('/api/auth/admin-grant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, adminKey }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Admin grant failed');
+    }
     saveSession(data.token, data.customer);
     return data.customer;
   }, [saveSession]);
@@ -114,6 +126,7 @@ export function AuthProvider({ children }) {
     loading,
     sendCode,
     verifyCode,
+    adminGrant,
     logout,
     isAuthenticated: !!customer,
   };
