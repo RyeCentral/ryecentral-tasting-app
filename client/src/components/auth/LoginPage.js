@@ -12,7 +12,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { sendCode, verifyCode, adminGrant } = useAuth();
+  const { sendCode, verifyCode, adminGrant, ssoLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [step, setStep] = useState('email'); // 'email' | 'code'
@@ -25,6 +25,24 @@ export default function LoginPage() {
   const codeRefs = useRef([]);
 
   // Countdown timer for resend
+
+  // SSO auto-login: check for ?sso_email= parameter from RyeCentral.com
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoEmail = params.get('sso_email');
+    if (ssoEmail) {
+      // Clean the URL to remove the sso_email param
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      // Attempt SSO login
+      ssoLogin(ssoEmail).then(success => {
+        if (!success) {
+          console.log('SSO login failed, falling back to normal login');
+        }
+      });
+    }
+  }, [ssoLogin]);
+
   useEffect(() => {
     if (resendTimer <= 0) return;
     const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
