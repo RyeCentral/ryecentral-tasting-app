@@ -187,4 +187,4 @@ async function findOrCreateShopifyCustomer(email) {
   }
 }
 
-module.exports = { findOrCreateShopifyCustomer };
+module.exports = { findOrCreateShopifyCustomer, customerExists };
