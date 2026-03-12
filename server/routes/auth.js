@@ -4,6 +4,7 @@
  * POST /api/auth/send-code    — Send a 6-digit code to the user's email
  * POST /api/auth/verify-code  — Verify the code and issue a JWT
  * POST /api/auth/validate     — Validate an existing JWT (session check)
+ * POST /api/auth/sso-login   — SSO login for logged-in RyeCentral.com users
  */
 
 const express = require('express');
@@ -17,7 +18,8 @@ const {
   issueAppToken,
   verifyAppToken,
 } = require('../services/authService');
-const { findOrCreateShopifyCustomer } = require('../services/shopifyCustomerService');
+const { findOrCreateShopifyCustomer, customerExists } = require('../services/shopifyCustomerService');
+const env = require('../config/env');
 
 /**
  * POST /api/auth/send-code
@@ -143,6 +145,57 @@ router.post('/admin-grant', (req, res) => {
           displayName: cleanEmail.split('@')[0],
     };
     res.json({ token, customer });
+});
+
+
+/**
+ * POST /api/auth/sso-login
+ * SSO-style login for users already logged into RyeCentral.com.
+ * Receives the customer email from the Shopify storefront,
+ * verifies the customer exists in Shopify, and issues a JWT
+ * without requiring an access code.
+ */
+router.post('/sso-login', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Validate origin — only allow from our Shopify storefront
+    const origin = req.get('origin') || req.get('referer') || '';
+    const allowedDomain = env.SHOPIFY_PUBLIC_DOMAIN || 'www.ryecentral.com';
+    const isAllowedOrigin = origin.includes(allowedDomain) || origin.includes('localhost');
+
+    if (!isAllowedOrigin) {
+      console.warn('SSO login rejected — invalid origin:', origin);
+      return res.status(403).json({ error: 'SSO login not allowed from this origin' });
+    }
+
+    // Verify customer actually exists in Shopify
+    const exists = await customerExists(cleanEmail);
+    if (!exists) {
+      console.warn('SSO login rejected — customer not found:', cleanEmail);
+      return res.status(404).json({ error: 'Customer not found in store' });
+    }
+
+    // Customer verified — issue JWT (same as verify-code flow)
+    console.log('SSO login granted for:', cleanEmail);
+    const token = issueAppToken(cleanEmail);
+
+    // Fire-and-forget: ensure customer record is synced
+    findOrCreateShopifyCustomer(cleanEmail).catch(err =>
+      console.error('SSO findOrCreate error:', err.message)
+    );
+
+    return res.json({ token, email: cleanEmail });
+  } catch (err) {
+    console.error('SSO login error:', err);
+    return res.status(500).json({ error: 'SSO login failed' });
+  }
 });
 
 module.exports = router;
