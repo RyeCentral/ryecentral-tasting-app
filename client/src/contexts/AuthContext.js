@@ -135,7 +135,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('tasting_token', data.token);
       localStorage.setItem('tasting_email', data.email);
       setToken(data.token);
-      setUser({ email: data.email });
+      setCustomer({ email: data.email });
       return true;
     } catch (err) {
       console.error('SSO login error:', err.message);
