@@ -18,7 +18,7 @@ const {
   issueAppToken,
   verifyAppToken,
 } = require('../services/authService');
-const { findOrCreateShopifyCustomer, customerExists } = require('../services/shopifyCustomerService');
+const { findOrCreateShopifyCustomer } = require('../services/shopifyCustomerService');
 const env = require('../config/env');
 
 /**
@@ -152,7 +152,7 @@ router.post('/admin-grant', (req, res) => {
  * POST /api/auth/sso-login
  * SSO-style login for users already logged into RyeCentral.com.
  * Receives the customer email from the Shopify storefront,
- * verifies the customer exists in Shopify, and issues a JWT
+ * validates the request origin, and issues a JWT
  * without requiring an access code.
  */
 router.post('/sso-login', async (req, res) => {
@@ -165,21 +165,15 @@ router.post('/sso-login', async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Validate origin — only allow from our Shopify storefront
+    // Validate origin — accept from our Shopify storefront OR same-origin (the tasting app itself)
     const origin = req.get('origin') || req.get('referer') || '';
     const allowedDomain = env.SHOPIFY_PUBLIC_DOMAIN || 'www.ryecentral.com';
-    const isAllowedOrigin = origin.includes(allowedDomain) || origin.includes('localhost');
+    const appUrl = env.APP_URL || '';
+    const isAllowedOrigin = origin.includes(allowedDomain) || origin.includes('localhost') || (appUrl && origin.includes(appUrl)) || origin.includes('railway.app');
 
     if (!isAllowedOrigin) {
       console.warn('SSO login rejected — invalid origin:', origin);
       return res.status(403).json({ error: 'SSO login not allowed from this origin' });
-    }
-
-    // Verify customer actually exists in Shopify
-    const exists = await customerExists(cleanEmail);
-    if (!exists) {
-      console.warn('SSO login rejected — customer not found:', cleanEmail);
-      return res.status(404).json({ error: 'Customer not found in store' });
     }
 
     // Customer verified — issue JWT (same as verify-code flow)
