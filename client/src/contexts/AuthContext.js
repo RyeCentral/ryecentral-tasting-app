@@ -8,6 +8,7 @@
  *  - sendCode(email): request a one-time login code
  *  - verifyCode(email, code): verify code and sign in
  *  - adminGrant(email, adminKey): admin bypass without code
+ * - ssoLogin(email): SSO login for RyeCentral.com users
  *  - logout(): clear session
  *  - isAuthenticated: boolean shortcut
  */
@@ -120,6 +121,31 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  // SSO login — auto-authenticate users already logged into RyeCentral.com
+  const ssoLogin = async (email) => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/sso-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'SSO login failed');
+      localStorage.setItem('tasting_token', data.token);
+      localStorage.setItem('tasting_email', data.email);
+      setToken(data.token);
+      setUser({ email: data.email });
+      return true;
+    } catch (err) {
+      console.error('SSO login error:', err.message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const value = {
     customer,
     token,
@@ -127,6 +153,7 @@ export function AuthProvider({ children }) {
     sendCode,
     verifyCode,
     adminGrant,
+    ssoLogin,
     logout,
     isAuthenticated: !!customer,
   };
