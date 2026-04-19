@@ -18,7 +18,7 @@ const {
   issueAppToken,
   verifyAppToken,
 } = require('../services/authService');
-const { findOrCreateShopifyCustomer, customerExists } = require('../services/shopifyCustomerService');
+const { findOrCreateShopifyCustomer } = require('../services/shopifyCustomerService');
 const env = require('../config/env');
 
 /**
@@ -39,26 +39,6 @@ router.post('/send-code', async (req, res) => {
   if (!rateCheck.allowed) {
     return res.status(429).json({
       error: `Please wait ${rateCheck.waitSeconds} seconds before requesting a new code.`,
-    });
-  }
-
-  // Gate: require an existing RyeCentral customer account.
-  // This prevents strangers who only have the tasting-app URL from signing up
-  // without first creating a RyeCentral account on the main store.
-  try {
-    const exists = await customerExists(email.toLowerCase().trim());
-    if (!exists) {
-      console.warn('send-code rejected — not a RyeCentral customer:', email);
-      return res.status(403).json({
-        error: 'No RyeCentral account found for that email. Create a free account at https://www.ryecentral.com/account/register first, then come back to start your tasting event.',
-        code: 'NO_RYECENTRAL_ACCOUNT',
-      });
-    }
-  } catch (err) {
-    console.error('customerExists check failed in send-code:', err.message);
-    // On check failure, fail-closed to protect the app: user should retry or contact support
-    return res.status(503).json({
-      error: 'Unable to verify your RyeCentral account right now. Please try again in a moment.',
     });
   }
 
@@ -194,25 +174,6 @@ router.post('/sso-login', async (req, res) => {
     if (!isAllowedOrigin) {
       console.warn('SSO login rejected — invalid origin:', origin);
       return res.status(403).json({ error: 'SSO login not allowed from this origin' });
-    }
-
-    // Verify the email is a real RyeCentral customer before granting SSO access.
-    // Prevents anyone who forges ?sso_email= (even with a valid origin) from bypassing
-    // RyeCentral account signup on the main store.
-    try {
-      const exists = await customerExists(cleanEmail);
-      if (!exists) {
-        console.warn('SSO login rejected — not a RyeCentral customer:', cleanEmail);
-        return res.status(403).json({
-          error: 'SSO requires an existing RyeCentral account. Please create one at https://www.ryecentral.com/account/register.',
-          code: 'NO_RYECENTRAL_ACCOUNT',
-        });
-      }
-    } catch (err) {
-      console.error('customerExists check failed in sso-login:', err.message);
-      return res.status(503).json({
-        error: 'Unable to verify your RyeCentral account right now. Please try again in a moment.',
-      });
     }
 
     // Customer verified — issue JWT (same as verify-code flow)
