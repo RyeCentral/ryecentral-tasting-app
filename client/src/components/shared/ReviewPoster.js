@@ -197,6 +197,34 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                     }}>
                       $10 Gift Voucher earned! Check your email.
                     </div>
+                  <div style={{
+                    marginTop: 12,
+                    padding: '10px 14px',
+                    background: 'var(--rc-gray-100)',
+                    borderRadius: 8,
+                    border: '1px solid var(--rc-gray-300)',
+                  }}>
+                    <a
+                      href={`https://www.ryecentral.com/products/${bottle.product?.handle || ''}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        color: 'var(--rc-orange)',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      🔍 View Full Review Page on RyeCentral →
+                    </a>
+                    <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 6, marginBottom: 0 }}>
+                      See how your blind tasting notes compare to the community's flavor profile, ratings, and reviews!
+                    </p>
+                  </div>
+
                   </div>
                 ) : previews[bottle.letter] === null ? (
                   <div style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
