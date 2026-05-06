@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const config = require('../config/env');
 const { createEvent, getEvent, getEventByInviteCode, getAllEvents, deleteEvent } = require('../models/TastingEvent');
 const { previewReview, submitReview, submitStoreReview } = require('../services/judgeService');
+const { scheduleReminders, sendRemindersNow } = require('../services/reminderService');
 
 /**
  * POST /api/events
@@ -262,6 +263,10 @@ router.post('/:id/submit-review', async (req, res) => {
     if (editedTitle) result.title = editedTitle;
     if (editedBody) result.body = editedBody;
 
+        // Track email and review submission for reminder system
+    event.setGuestEmail(guestId, guestEmail);
+    event.markReviewSubmitted(guestId, bottleLetter);
+
     res.json(result);
   } catch (err) {
     console.error('Judge.me submit error:', err);
@@ -278,6 +283,12 @@ router.post('/:id/end', (req, res) => {
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
   event.status = 'ended';
+
+  // Auto-schedule reminder emails for guests who haven't posted reviews
+  const appUrl = config.APP_URL || req.protocol + '://' + req.get('host');
+  const reminderResult = scheduleReminders(event, appUrl);
+  console.log('[Event End] Reminders scheduled for', event.name, reminderResult);
+
   res.json({ event: event.toJSON('admin') });
 });
 
@@ -318,6 +329,26 @@ router.post('/:id/feedback', async (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+/**
+ * POST /api/events/:id/send-reminders
+ * Manually send reminder emails to guests who haven't posted reviews
+ */
+router.post('/:id/send-reminders', async (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  const appUrl = config.APP_URL || req.protocol + '://' + req.get('host');
+  const isSecond = req.body.isSecondReminder || false;
+
+  try {
+    const results = await sendRemindersNow(event, appUrl, isSecond);
+    res.json({ success: true, ...results });
+  } catch (err) {
+    console.error('Send reminders error:', err);
+    res.status(500).json({ error: 'Failed to send reminders', message: err.message });
+  }
 });
 
 /**
