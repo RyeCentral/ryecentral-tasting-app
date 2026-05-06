@@ -194,10 +194,17 @@ function handleMessage(ws, room, event, message) {
       event.status = 'complete';
       // Auto-reveal all bottles now that tasting is over
       event.bottles.forEach((b) => { b.revealed = true; });
+      // Send revealed bottles (with product details) to all guests
+      const revealedBottles = event.bottles.map((b) => ({
+        letter: b.letter,
+        revealed: true,
+        product: b.product,
+      }));
       broadcastToAll(room, {
         type: 'event:complete',
         leaderboard,
         prizes: event.prizes,
+        bottles: revealedBottles,
       });
       break;
 
