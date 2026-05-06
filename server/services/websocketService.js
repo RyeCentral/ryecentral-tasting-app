@@ -205,13 +205,16 @@ function handleMessage(ws, room, event, message) {
     case 'guest:response':
       if (ws.role !== 'guest') return;
       event.saveResponse(ws.guestId, message.bottleLetter, message.response);
-      // Notify admin
+      // Calculate live scores for all guests who have responded so far
+      const liveLeaderboard = event.calculatePartialScores();
+      // Notify admin with response info AND live leaderboard
       sendToAdmin(room, {
         type: 'guest:response',
         guestId: ws.guestId,
         guestName: event.guests.get(ws.guestId)?.name,
         bottleLetter: message.bottleLetter,
         allResponded: event.hasAllGuestsResponded(message.bottleLetter),
+        liveLeaderboard,
       });
       break;
 
@@ -265,8 +268,8 @@ function buildPillBoxNotes(realNotes) {
     'caramel', 'vanilla', 'cinnamon', 'black pepper', 'clove', 'nutmeg',
     'oak', 'honey', 'maple syrup', 'brown sugar', 'toffee', 'butterscotch',
     'cherry', 'apple', 'pear', 'dried fruit', 'raisin', 'citrus zest',
-    'orange peel', 'dark chocolate', 'cocoa', 'leather', 'tobacco',
-    'smoke', 'char', 'mint', 'herbal', 'dill', 'anise', 'licorice',
+    'orange peel', 'dark chocolate', 'cocoa', 'leather', 'tobacco', 'smoke',
+    'char', 'mint', 'herbal', 'dill', 'anise', 'licorice',
     'baking spice', 'allspice', 'ginger', 'floral', 'rose', 'grass',
     'grain', 'bread', 'corn', 'rye spice', 'white pepper', 'molasses',
     'walnut', 'almond', 'pecan', 'coconut', 'banana', 'tropical fruit',
@@ -277,11 +280,23 @@ function buildPillBoxNotes(realNotes) {
 
   // Get decoys (not in real notes)
   const available = allPossibleNotes.filter((n) => !realSet.has(n));
-  // Ensure at least 10 total pills (real + decoy) so the UI looks full,
-  // but also add ~50% decoys when data is abundant
-  const minTotal = 10;
-  const minDecoys = Math.max(4, minTotal - realNotes.length);
-  const decoyCount = Math.max(minDecoys, Math.ceil(realNotes.length * 0.5));
+
+  // Fixed total of 8-10 pills: all real notes + decoys to fill the rest
+  const TARGET_TOTAL = 9; // sweet spot between 8 and 10
+  const realCount = realNotes.length;
+
+  let decoyCount;
+  if (realCount >= 10) {
+    // If product has 10+ real notes, include them all, no decoys needed
+    decoyCount = 0;
+  } else if (realCount >= 8) {
+    // Already in the 8-10 range, add 0-1 decoys to reach ~10
+    decoyCount = Math.min(10 - realCount, available.length);
+  } else {
+    // Pad with decoys to reach target total (9)
+    decoyCount = Math.min(TARGET_TOTAL - realCount, available.length);
+  }
+
   const decoys = shuffleArray(available).slice(0, decoyCount);
 
   // Combine and shuffle — only send the text, NOT whether it's a decoy
