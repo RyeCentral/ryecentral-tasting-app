@@ -269,6 +269,74 @@ function sanitizeBottleForGuest(bottle, event) {
  * Mix real community notes with random decoy notes.
  * Returns shuffled array of { text, isDecoy } — but isDecoy is NOT sent to client!
  */
+
+// Emoji icons and descriptions for tasting note pills
+const NOTE_META = {
+  'caramel': { emoji: '🍮', desc: 'Rich, sweet, buttery burnt sugar' },
+  'vanilla': { emoji: '🍦', desc: 'Sweet, creamy, warm extract note' },
+  'cinnamon': { emoji: '🫚', desc: 'Warm, sweet bark spice' },
+  'black pepper': { emoji: '🌶️', desc: 'Sharp, biting heat on the tongue' },
+  'clove': { emoji: '🫚', desc: 'Intense warm spice, slightly numbing' },
+  'nutmeg': { emoji: '🫚', desc: 'Warm, nutty, slightly sweet spice' },
+  'oak': { emoji: '🪵', desc: 'Woody, dry, tannic — from barrel aging' },
+  'honey': { emoji: '🍯', desc: 'Sweet, floral, golden nectar' },
+  'maple syrup': { emoji: '🍁', desc: 'Rich, earthy sweetness' },
+  'brown sugar': { emoji: '🟫', desc: 'Deep molasses-tinged sweetness' },
+  'toffee': { emoji: '🍬', desc: 'Buttery, caramelized sugar candy' },
+  'butterscotch': { emoji: '🍬', desc: 'Creamy, rich butter-and-sugar' },
+  'cherry': { emoji: '🍒', desc: 'Sweet-tart stone fruit' },
+  'apple': { emoji: '🍎', desc: 'Crisp, fresh fruit — green or red' },
+  'pear': { emoji: '🍐', desc: 'Soft, sweet, juicy fruit' },
+  'dried fruit': { emoji: '🍇', desc: 'Concentrated, sweet, raisin-like' },
+  'raisin': { emoji: '🍇', desc: 'Sun-dried grape, deep sweetness' },
+  'citrus zest': { emoji: '🍋', desc: 'Bright, tangy, aromatic peel oils' },
+  'orange peel': { emoji: '🍊', desc: 'Bitter-sweet, aromatic citrus rind' },
+  'dark chocolate': { emoji: '🍫', desc: 'Bitter, rich, cocoa-forward' },
+  'cocoa': { emoji: '🍫', desc: 'Dry, roasted chocolate powder' },
+  'leather': { emoji: '🪶', desc: 'Earthy, musky, aged tannin note' },
+  'tobacco': { emoji: '🍂', desc: 'Dried leaf, sweet pipe tobacco aroma' },
+  'smoke': { emoji: '💨', desc: 'Campfire, charred wood, ash' },
+  'char': { emoji: '🔥', desc: 'Deep charcoal, blackened barrel interior' },
+  'mint': { emoji: '🌿', desc: 'Cool, refreshing menthol note' },
+  'herbal': { emoji: '🌿', desc: 'Green, leafy, garden-herb character' },
+  'dill': { emoji: '🌿', desc: 'Fresh, grassy — classic young rye note' },
+  'anise': { emoji: '⭐', desc: 'Sweet licorice, star anise warmth' },
+  'licorice': { emoji: '⭐', desc: 'Dark, sweet, root-like flavor' },
+  'baking spice': { emoji: '🧁', desc: 'Cinnamon-nutmeg-allspice blend' },
+  'allspice': { emoji: '🫚', desc: 'Tastes like clove+cinnamon+nutmeg combined' },
+  'ginger': { emoji: '🫚', desc: 'Spicy, zesty, warming root' },
+  'floral': { emoji: '🌸', desc: 'Light, perfumy, flower petal notes' },
+  'rose': { emoji: '🌹', desc: 'Fragrant, sweet flower petal' },
+  'grass': { emoji: '🌾', desc: 'Fresh-cut, green, hay-like' },
+  'grain': { emoji: '🌾', desc: 'Cereal, raw grain, bready' },
+  'bread': { emoji: '🍞', desc: 'Yeasty, warm, baked dough' },
+  'corn': { emoji: '🌽', desc: 'Sweet, starchy, cornbread-like' },
+  'rye spice': { emoji: '🌶️', desc: 'Peppery bite unique to rye grain' },
+  'white pepper': { emoji: '⚪', desc: 'Sharp but more delicate than black pepper' },
+  'molasses': { emoji: '🫗', desc: 'Dark, thick, bittersweet sugar' },
+  'walnut': { emoji: '🥜', desc: 'Slightly bitter, earthy nut' },
+  'almond': { emoji: '🥜', desc: 'Sweet, marzipan-like nut' },
+  'pecan': { emoji: '🥜', desc: 'Buttery, rich, toasted nut' },
+  'coconut': { emoji: '🥥', desc: 'Tropical, creamy, sweet' },
+  'banana': { emoji: '🍌', desc: 'Sweet, fruity ester note' },
+  'tropical fruit': { emoji: '🥭', desc: 'Mango, pineapple, passion fruit' },
+  'stone fruit': { emoji: '🍑', desc: 'Peach, apricot, plum family' },
+  'peach': { emoji: '🍑', desc: 'Sweet, juicy, fuzzy stone fruit' },
+  'apricot': { emoji: '🍑', desc: 'Tangy-sweet, delicate stone fruit' },
+  'plum': { emoji: '🫐', desc: 'Rich, dark, sweet-tart fruit' },
+  'fig': { emoji: '🫐', desc: 'Dense, jammy, honey-sweet fruit' },
+  'date': { emoji: '🫐', desc: 'Very sweet, chewy, caramel-like dried fruit' },
+  'sage': { emoji: '🌿', desc: 'Earthy, slightly peppery herb with musky aroma' },
+  'eucalyptus': { emoji: '🌿', desc: 'Menthol-forward, medicinal cooling sensation' },
+  'cedar': { emoji: '🪵', desc: 'Aromatic wood, pencil shavings, dry' },
+  'sandalwood': { emoji: '🪵', desc: 'Soft, creamy, exotic woodiness' },
+};
+
+function getNoteMeta(text) {
+  const key = text.toLowerCase();
+  return NOTE_META[key] || { emoji: '👃', desc: '' };
+}
+
 function buildPillBoxNotes(realNotes) {
   // Common rye whiskey tasting note vocabulary for decoys
   const allPossibleNotes = [
@@ -308,8 +376,8 @@ function buildPillBoxNotes(realNotes) {
 
   // Combine and shuffle — only send the text, NOT whether it's a decoy
   const allNotes = [
-    ...realNotes.map((text) => ({ text })),
-    ...decoys.map((text) => ({ text })),
+    ...realNotes.map((text) => ({ text, emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
+    ...decoys.map((text) => ({ text, emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
   ];
 
   return shuffleArray(allNotes);
