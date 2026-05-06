@@ -72,6 +72,12 @@ function setupWebSocket(server) {
       sendToClient(ws, adminPayload);
     } else if (role === 'guest' && guestId) {
       room.guests.set(guestId, ws);
+
+      // Cancel any pending disconnect timer (guest reconnected within grace period)
+      if (room.disconnectTimers && room.disconnectTimers.has(guestId)) {
+        clearTimeout(room.disconnectTimers.get(guestId));
+        room.disconnectTimers.delete(guestId);
+      }
       ws.role = 'guest';
       ws.guestId = guestId;
       ws.eventId = eventId;
@@ -119,14 +125,25 @@ function setupWebSocket(server) {
         room.admin = null;
       } else if (ws.role === 'guest' && ws.guestId) {
         room.guests.delete(ws.guestId);
-        event.setGuestConnected(ws.guestId, false);
-
-        // Notify admin of disconnect
-        sendToAdmin(room, {
-          type: 'guest:disconnected',
-          guestId: ws.guestId,
-          guestCount: event.guests.size,
-        });
+        // Grace period: wait 30s before marking as disconnected
+        // (handles phone screen lock / tab switch without false "offline" status)
+        const disconnectGuestId = ws.guestId;
+        if (!room.disconnectTimers) room.disconnectTimers = new Map();
+        if (room.disconnectTimers.has(disconnectGuestId)) {
+          clearTimeout(room.disconnectTimers.get(disconnectGuestId));
+        }
+        const timer = setTimeout(() => {
+          room.disconnectTimers.delete(disconnectGuestId);
+          if (!room.guests.has(disconnectGuestId)) {
+            event.setGuestConnected(disconnectGuestId, false);
+            sendToAdmin(room, {
+              type: 'guest:disconnected',
+              guestId: disconnectGuestId,
+              guestCount: event.guests.size,
+            });
+          }
+        }, 30000);
+        room.disconnectTimers.set(disconnectGuestId, timer);
       }
 
       // Clean up empty rooms
@@ -250,16 +267,18 @@ function sanitizeBottleForGuest(bottle, event) {
   const community = bottle.product?.community || {};
 
   // Build pill-box notes: real notes + 50% random decoys
-  const noseNotes = buildPillBoxNotes(community.noseNotes || []);
-  const palateNotes = buildPillBoxNotes(community.palateNotes || []);
+  const nosePillData = buildPillBoxNotes(community.noseNotes || []);
+  const palatePillData = buildPillBoxNotes(community.palateNotes || []);
 
   // List of all bottle names for the "guess which bottle" dropdown
   const bottleOptions = event.bottles.map((b) => b.product.title);
 
   return {
     letter: bottle.letter,
-    noseNotePills: noseNotes,
-    palateNotePills: palateNotes,
+    noseNotePills: nosePillData.pills,
+    noseRealCount: nosePillData.realCount,
+    palateNotePills: palatePillData.pills,
+    palateRealCount: palatePillData.realCount,
     bottleOptions, // All bottle names for guessing
     flavorProfileKeys: ['sweetness', 'ryeSpice', 'herbalMint', 'fruit', 'oakVanilla', 'body', 'heat', 'finishLength'],
   };
@@ -376,11 +395,11 @@ function buildPillBoxNotes(realNotes) {
 
   // Combine and shuffle — only send the text, NOT whether it's a decoy
   const allNotes = [
-    ...realNotes.map((text) => ({ text, emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
-    ...decoys.map((text) => ({ text, emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
+    ...realNotes.map((text) => ({ text: text.toLowerCase(), emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
+    ...decoys.map((text) => ({ text: text.toLowerCase(), emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc })),
   ];
 
-  return shuffleArray(allNotes);
+  return { pills: shuffleArray(allNotes), realCount: realNotes.length };
 }
 
 function shuffleArray(arr) {
