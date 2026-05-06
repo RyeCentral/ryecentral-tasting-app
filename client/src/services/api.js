@@ -158,3 +158,12 @@ export function submitFeedback(eventId, { rating, comment, hostName, hostEmail }
     body: JSON.stringify({ rating, comment, hostName, hostEmail }),
   });
 }
+
+
+// ── Review Reminders ─────────────────────────────────────
+export function sendReminders(eventId, isSecondReminder = false) {
+  return request(`/events/${eventId}/send-reminders`, {
+    method: 'POST',
+    body: JSON.stringify({ isSecondReminder }),
+  });
+}
