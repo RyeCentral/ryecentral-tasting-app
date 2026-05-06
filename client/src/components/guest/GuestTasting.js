@@ -34,7 +34,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [flavorProfile, setFlavorProfile] = useState({});
   const [priceGuess, setPriceGuess] = useState('');
   const [bottleGuess, setBottleGuess] = useState('');
-  const [rating, setRating] = useState(3.0);
+  const [rating, setRating] = useState(4.0);
   const [freeNotes, setFreeNotes] = useState('');
 
   // Connect WebSocket
@@ -121,7 +121,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     setFlavorProfile({});
     setPriceGuess('');
     setBottleGuess('');
-    setRating(3.0);
+    setRating(4.0);
     setFreeNotes('');
   }, []);
 
@@ -251,12 +251,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         <Celebration active={celebrate} />
         <div className="page">
           <div className="container-narrow" style={{ margin: '0 auto' }}>
-            <Leaderboard
-              leaderboard={leaderboard}
-              prizes={prizes}
-              highlightGuestId={guestId}
-              startDelay={3000}
-            />
+            
 
             {/* Your Favorite Bottle Reveal */}
             {favoriteBottle && event.bottles && (() => {
@@ -296,6 +291,13 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               eventId={eventId}
               guestId={guestId}
               bottles={event.bottles}
+            />
+
+            <Leaderboard
+              leaderboard={leaderboard}
+              prizes={prizes}
+              highlightGuestId={guestId}
+              startDelay={3000}
             />
           </div>
         </div>
@@ -420,6 +422,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         key={pill.text}
                         type="button"
                         onClick={() => toggleNote('nose', pill.text)}
+                        title={pill.desc || ''}
                         style={{
                           padding: '6px 14px',
                           borderRadius: 20,
@@ -432,7 +435,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           transition: 'all 0.15s',
                         }}
                       >
-                        {pill.text}
+                        {pill.emoji && <span style={{ marginRight: 4 }}>{pill.emoji}</span>}{pill.text}
                       </button>
                     ))}
                   </div>
@@ -452,6 +455,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         key={pill.text}
                         type="button"
                         onClick={() => toggleNote('palate', pill.text)}
+                        title={pill.desc || ''}
                         style={{
                           padding: '6px 14px',
                           borderRadius: 20,
@@ -464,7 +468,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           transition: 'all 0.15s',
                         }}
                       >
-                        {pill.text}
+                        {pill.emoji && <span style={{ marginRight: 4 }}>{pill.emoji}</span>}{pill.text}
                       </button>
                     ))}
                   </div>
@@ -516,7 +520,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      Rating (out of 5.0)
+                      Community Rating Guess
                     </label>
                     <input
                       className="form-input"
