@@ -10,6 +10,22 @@ export default function TopBar({ eventName }) {
         RyeCentral <span>Tasting</span>
       </a>
       <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <a
+          href="https://www.ryecentral.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: 'var(--rc-orange)',
+            fontSize: 12,
+            fontWeight: 600,
+            textDecoration: 'none',
+            padding: '3px 8px',
+            border: '1px solid var(--rc-orange)',
+            borderRadius: 4,
+          }}
+        >
+          RyeCentral.com
+        </a>
         {eventName && (
           <span style={{ color: '#aaa', fontSize: 14 }}>{eventName}</span>
         )}
