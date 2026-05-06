@@ -221,8 +221,9 @@ class TastingEvent {
       }
     });
 
+    // Each wrong pick costs 25% of max — selecting all pills is a losing strategy
     const accuracy = communityNotes.length > 0
-      ? (correct / communityNotes.length) - (incorrect * 0.1)
+      ? (correct / communityNotes.length) - (incorrect * 0.25 / communityNotes.length)
       : 0;
 
     return Math.max(0, accuracy * maxPoints);
