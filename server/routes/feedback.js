@@ -124,6 +124,44 @@ function notifySlack(handle, comment, totals) {
   req.write(data); req.end();
 }
 
+function notifyEmail(handle, comment, totals) {
+  // Only fires when there's an actual comment to read — we don't want noise
+  // from anonymous "no" clicks with no context.
+  if (!comment) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.FEEDBACK_NOTIFY_EMAIL;
+  if (!apiKey || !to) return;
+  const from = process.env.FEEDBACK_NOTIFY_FROM || 'RyeCentral Feedback <feedback@ryecentral.com>';
+  const pageUrl = `https://www.ryecentral.com/blogs/cocktail-station/${handle}`;
+  const safeComment = String(comment).replace(/[<>]/g, '');
+  const subject = `RyeCentral feedback: /${handle} — "${safeComment.slice(0, 60)}${safeComment.length > 60 ? '…' : ''}"`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;color:#222;">
+      <h2 style="margin:0 0 12px;font-size:18px;">👎 Negative feedback on /${handle}</h2>
+      <blockquote style="margin:0 0 16px;padding:12px 16px;background:#fafaf7;border-left:3px solid #D4A24C;font-size:15px;line-height:1.5;white-space:pre-wrap;">${safeComment}</blockquote>
+      <p style="margin:0 0 8px;font-size:13px;color:#666;">Counts: 👍 ${totals.yes} · 👎 ${totals.no}</p>
+      <p style="margin:0;font-size:13px;"><a href="${pageUrl}">${pageUrl}</a></p>
+    </div>`.trim();
+  const textBody = `Negative feedback on /${handle}\n\n"${safeComment}"\n\nCounts: 👍 ${totals.yes} · 👎 ${totals.no}\n${pageUrl}`;
+  const data = JSON.stringify({ from, to: [to], subject, html, text: textBody });
+  const req = https.request({
+    hostname: 'api.resend.com', path: '/emails', method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data),
+    },
+  }, res => {
+    let buf = '';
+    res.on('data', c => buf += c);
+    res.on('end', () => {
+      if (res.statusCode >= 300) console.error('[feedback/email]', res.statusCode, buf.slice(0, 200));
+    });
+  });
+  req.on('error', e => console.error('[feedback/email] req err', e.message));
+  req.write(data); req.end();
+}
+
 function sanitiseComment(c) {
   if (!c) return '';
   return String(c).replace(/<[^>]*>/g, '').trim().slice(0, 500);
@@ -179,7 +217,11 @@ router.post('/vote', async (req, res) => {
 
     voteSeen.set(rateKey, Date.now() + VOTE_TTL_MS);
 
-    if (type === 'no') notifySlack(handle, sanitiseComment(comment), next);
+    if (type === 'no') {
+      const safe = sanitiseComment(comment);
+      notifySlack(handle, safe, next);
+      notifyEmail(handle, safe, next);
+    }
 
     return res.json(next);
   } catch (e) {
