@@ -26,7 +26,7 @@ const https = require('https');
 const router = express.Router();
 
 const BLOG_ID = 105207431416; // cocktail-station blog
-const METAFIELD_NS = 'rc';
+const METAFIELD_NS = 'ryec';
 const KEY_YES = 'helpful_yes';
 const KEY_NO = 'helpful_no';
 
