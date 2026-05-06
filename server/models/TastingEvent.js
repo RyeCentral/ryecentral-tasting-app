@@ -265,6 +265,44 @@ class TastingEvent {
     return Math.max(0, (1 - diff / 4) * maxPoints);
   }
 
+  /**
+   * Calculate partial/live scores based on responses submitted so far.
+   * Unlike calculateScores(), this only scores bottles up to currentBottleIndex
+   * and returns a leaderboard sorted by running total.
+   */
+  calculatePartialScores() {
+    const leaderboard = [];
+
+    for (const [guestId, guest] of this.guests) {
+      const guestResponses = this.responses.get(guestId) || {};
+      let totalScore = 0;
+      const perBottle = {};
+
+      // Only score bottles that have been presented so far
+      for (let i = 0; i <= this.currentBottleIndex && i < this.bottles.length; i++) {
+        const bottle = this.bottles[i];
+        const response = guestResponses[bottle.letter];
+        if (!response) {
+          perBottle[bottle.letter] = 0;
+          continue;
+        }
+        const bottleScore = this._scoreBottle(response, bottle.product);
+        perBottle[bottle.letter] = bottleScore;
+        totalScore += bottleScore;
+      }
+
+      leaderboard.push({
+        guestId,
+        guestName: guest?.name || 'Unknown',
+        total: totalScore,
+        perBottle,
+        bottlesScored: Object.keys(guestResponses).length,
+      });
+    }
+
+    return leaderboard.sort((a, b) => b.total - a.total);
+  }
+
   getLeaderboard() {
     const leaderboard = [];
     for (const [guestId, score] of this.scores) {
