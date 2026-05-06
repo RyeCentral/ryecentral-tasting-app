@@ -38,6 +38,11 @@ class TastingEvent {
 
     // Invite code (short, easy to share)
     this.inviteCode = this._generateInviteCode();
+
+    // Email tracking for review reminders
+    this.guestEmails = new Map();       // guestId -> email
+    this.reviewsSubmitted = new Map();  // guestId -> Set of bottle letters
+    this.remindersSent = new Map();     // 'guestId:1' or 'guestId:2' -> timestamp
   }
 
   _generateInviteCode() {
@@ -115,6 +120,36 @@ class TastingEvent {
 
   getGuests() {
     return Array.from(this.guests.values());
+  }
+
+  // ── Email & Review Tracking ────────────────────────────
+
+  setGuestEmail(guestId, email) {
+    if (email) {
+      this.guestEmails.set(guestId, email.toLowerCase().trim());
+    }
+  }
+
+  markReviewSubmitted(guestId, bottleLetter) {
+    if (!this.reviewsSubmitted.has(guestId)) {
+      this.reviewsSubmitted.set(guestId, new Set());
+    }
+    this.reviewsSubmitted.get(guestId).add(bottleLetter);
+  }
+
+  getUnreviewedGuests() {
+    const result = [];
+    for (const [guestId, guest] of this.guests) {
+      const email = this.guestEmails.get(guestId);
+      if (!email) continue;
+      const submitted = this.reviewsSubmitted.get(guestId) || new Set();
+      const revealed = this.bottles.filter((b) => b.revealed);
+      const unreviewed = revealed.filter((b) => !submitted.has(b.letter));
+      if (unreviewed.length > 0) {
+        result.push({ guestId, name: guest.name, email, unreviewedCount: unreviewed.length });
+      }
+    }
+    return result;
   }
 
   // ── Response Management ────────────────────────────────
