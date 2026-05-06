@@ -222,6 +222,7 @@ export default function AdminEventLive({ eventId }) {
     if (!window.confirm('End this event? It will be archived and removed from your active events list.')) return;
     try {
       await api.endEvent(eventId);
+      alert('Event ended! Reminder emails will be sent automatically to guests who haven\'t posted reviews (24 hours and 3 days from now).');
       navigate('/admin');
     } catch (err) {
       console.error('Failed to end event:', err);
