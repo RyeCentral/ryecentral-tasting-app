@@ -35,6 +35,7 @@ export default function AdminEventLive({ eventId }) {
   const [feedbackEmail, setFeedbackEmail] = useState(customer?.email || '');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showTastingTips, setShowTastingTips] = useState(false);
+  const [liveLeaderboard, setLiveLeaderboard] = useState([]);
 
   // Connect WebSocket
   useEffect(() => {
@@ -89,6 +90,9 @@ export default function AdminEventLive({ eventId }) {
           ...prev,
           [msg.bottleLetter]: msg.allResponded,
         }));
+        if (msg.liveLeaderboard) {
+          setLiveLeaderboard(msg.liveLeaderboard);
+        }
       }),
 
       wsService.on('event:complete', (msg) => {
@@ -673,6 +677,45 @@ export default function AdminEventLive({ eventId }) {
                 </div>
               </div>
             </div>
+
+            {/* Live Leaderboard — visible during active tasting */}
+            {event.status === 'active' && liveLeaderboard.length > 0 && (
+              <div className="card" style={{ marginTop: 16 }}>
+                <h3 style={{ marginBottom: 12, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--rc-green)', animation: 'pulse 2s infinite' }} />
+                  Live Standings
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {liveLeaderboard.map((entry, rank) => (
+                    <div key={entry.guestId} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '6px 10px', borderRadius: 8,
+                      background: rank === 0 ? 'var(--rc-orange-light)' : 'transparent',
+                      border: rank === 0 ? '1px solid var(--rc-orange)' : '1px solid var(--rc-gray-200)',
+                    }}>
+                      <span style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700,
+                        background: rank < 3 ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                        color: rank < 3 ? '#fff' : 'var(--rc-gray-700)',
+                      }}>
+                        {rank + 1}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: rank === 0 ? 700 : 400 }}>
+                        {entry.guestName}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--rc-orange)' }}>
+                        {Math.round(entry.total)} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--rc-gray-400)', marginTop: 8, textAlign: 'center' }}>
+                  Updates as guests submit ratings
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
