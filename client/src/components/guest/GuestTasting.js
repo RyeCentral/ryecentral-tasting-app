@@ -257,6 +257,41 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               highlightGuestId={guestId}
               startDelay={3000}
             />
+
+            {/* Your Favorite Bottle Reveal */}
+            {favoriteBottle && event.bottles && (() => {
+              const favBottle = event.bottles.find((b) => b.letter === favoriteBottle);
+              const productTitle = favBottle?.product?.title?.replace(/ Review.*$/i, '') || null;
+              const productImage = favBottle?.product?.image?.url || null;
+              return (
+                <div className="card" style={{ marginTop: 20, marginBottom: 20, textAlign: 'center' }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>❤️</div>
+                  <h3 style={{ fontSize: 18, marginBottom: 4 }}>Your Favorite: Bottle {favoriteBottle}</h3>
+                  {productTitle ? (
+                    <div style={{ marginTop: 12 }}>
+                      {productImage && (
+                        <img src={productImage} alt={productTitle}
+                          style={{ width: 80, height: 100, objectFit: 'contain', marginBottom: 8 }} />
+                      )}
+                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--rc-orange)' }}>
+                        {productTitle}
+                      </div>
+                      {favBottle?.product?.vendor && (
+                        <div style={{ fontSize: 13, color: 'var(--rc-gray-500)', marginTop: 4 }}>
+                          {favBottle.product.vendor}
+                          {favBottle.product.details?.proof ? ' · ' + favBottle.product.details.proof : ''}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
+                      Waiting for bottle reveal...
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             <ReviewPoster
               eventId={eventId}
               guestId={guestId}
