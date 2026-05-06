@@ -37,6 +37,12 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [rating, setRating] = useState(4.0);
   const [freeNotes, setFreeNotes] = useState('');
 
+  // Store all bottle data for go-back editing
+  const [allBottleData, setAllBottleData] = useState({}); // { letter: bottleData }
+  const [savedResponses, setSavedResponses] = useState({}); // { letter: { nose, palate, flavor, price, guess, rating, notes } }
+  const [viewingPrevBottle, setViewingPrevBottle] = useState(null); // letter of previous bottle being edited
+  const [showResetTips, setShowResetTips] = useState(false); // palate reset tips between bottles
+
   // Connect WebSocket
   useEffect(() => {
     wsService.connect({ eventId, role: 'guest', guestId });
@@ -66,11 +72,22 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         setCurrentBottle(msg.currentBottle);
         setEvent((prev) => prev ? { ...prev, status: 'active' } : prev);
         resetForm();
+        setShowResetTips(false);
+        setViewingPrevBottle(null);
+        // Store bottle data for go-back editing
+        if (msg.currentBottle) {
+          setAllBottleData((prev) => ({ ...prev, [msg.currentBottle.letter]: msg.currentBottle }));
+        }
       }),
 
       wsService.on('bottle:next', (msg) => {
         setCurrentBottle(msg.currentBottle);
         resetForm();
+        setShowResetTips(true); // Show palate reset tips between bottles
+        setViewingPrevBottle(null);
+        if (msg.currentBottle) {
+          setAllBottleData((prev) => ({ ...prev, [msg.currentBottle.letter]: msg.currentBottle }));
+        }
       }),
 
       wsService.on('bottle:reveal', (msg) => {
@@ -140,11 +157,11 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
   // Submit response
   const handleSubmit = () => {
-    if (!currentBottle) return;
-
+    const bottle = viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle;
+    if (!bottle) return;
     wsService.send({
       type: 'guest:response',
-      bottleLetter: currentBottle.letter,
+      bottleLetter: bottle.letter,
       response: {
         noseNotes: selectedNose,
         palateNotes: selectedPalate,
@@ -155,8 +172,15 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         freeNotes,
       },
     });
-
-    setSubmitted((prev) => ({ ...prev, [currentBottle.letter]: true }));
+    setSavedResponses((prev) => ({
+      ...prev,
+      [bottle.letter]: { selectedNose, selectedPalate, flavorProfile, priceGuess, bottleGuess, rating, freeNotes },
+    }));
+    setSubmitted((prev) => ({ ...prev, [bottle.letter]: true }));
+    if (viewingPrevBottle) {
+      setViewingPrevBottle(null);
+      resetForm();
+    }
   };
 
   // Submit favorite bottle pick
@@ -167,6 +191,21 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
       favoriteBottle,
     });
     setFavoriteSubmitted(true);
+  };
+
+  // Load a previous bottle's saved responses into the form for editing
+  const loadPreviousBottle = (letter) => {
+    const saved = savedResponses[letter];
+    if (!saved) return;
+    setSelectedNose(saved.selectedNose || []);
+    setSelectedPalate(saved.selectedPalate || []);
+    setFlavorProfile(saved.flavorProfile || {});
+    setPriceGuess(saved.priceGuess || '');
+    setBottleGuess(saved.bottleGuess || '');
+    setRating(saved.rating || 4.0);
+    setFreeNotes(saved.freeNotes || '');
+    setViewingPrevBottle(letter);
+    setShowResetTips(false);
   };
 
   // Check if all bottles have been tasted (for favorite prompt)
@@ -307,7 +346,8 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
   // ── Active Tasting — Bottle Card + Form ────────────────
 
-  const alreadySubmitted = currentBottle && submitted[currentBottle.letter];
+  const activeBottle = viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle;
+  const alreadySubmitted = !viewingPrevBottle && currentBottle && submitted[currentBottle.letter];
 
   return (
     <>
@@ -316,15 +356,29 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         <div className="container-narrow" style={{ margin: '0 auto' }}>
 
           {/* Bottle Header */}
-          {currentBottle && (
+          {activeBottle && (
             <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
               <div className="bottle-letter" style={{ width: 64, height: 64, fontSize: 28, margin: '0 auto 12px' }}>
-                {currentBottle.letter}
+                {activeBottle.letter}
               </div>
-              <h2 style={{ fontSize: 22 }}>Bottle {currentBottle.letter}</h2>
+              <h2 style={{ fontSize: 22 }}>
+                {viewingPrevBottle ? 'Editing: ' : ''}Bottle {activeBottle.letter}
+              </h2>
               <p style={{ fontSize: 14, color: 'var(--rc-gray-500)' }}>
                 Taste, rate, and guess what this rye is!
               </p>
+              {viewingPrevBottle && (
+                <button
+                  onClick={() => { setViewingPrevBottle(null); resetForm(); }}
+                  style={{
+                    marginTop: 8, padding: '6px 16px', borderRadius: 8, fontSize: 13,
+                    fontWeight: 600, border: '1px solid var(--rc-gray-400)', background: 'var(--rc-white)',
+                    color: 'var(--rc-gray-700)', cursor: 'pointer',
+                  }}
+                >
+                  ← Back to Current Bottle
+                </button>
+              )}
             </div>
           )}
 
@@ -372,6 +426,47 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         key={bottle.letter}
                         type="button"
                         onClick={() => setFavoriteBottle(bottle.letter)}
+
+              {/* Palate Reset Tips — shown between bottles */}
+              {showResetTips && (
+                <div className="card" style={{ marginTop: 16, border: '2px solid var(--rc-orange)', background: 'var(--rc-orange-light)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <h3 style={{ fontSize: 15, color: 'var(--rc-orange)', margin: 0 }}>Reset Your Palate</h3>
+                    <button onClick={() => setShowResetTips(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--rc-gray-500)' }}>✕</button>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--rc-gray-700)', lineHeight: 1.6 }}>
+                    <div style={{ marginBottom: 6 }}><strong>Sip water</strong> — still, room temperature (not sparkling)</div>
+                    <div style={{ marginBottom: 6 }}><strong>Eat a plain cracker</strong> — unsalted crackers or bread reset taste buds</div>
+                    <div style={{ marginBottom: 6 }}><strong>Breathe fresh air</strong> — step away from the glasses briefly to reset your nose</div>
+                    <div><strong>Wait 1-2 minutes</strong> — give your palate time to recover before the next pour</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Go Back & Edit Previous Bottles */}
+              {Object.keys(savedResponses).length > 0 && (
+                <div className="card" style={{ marginTop: 16 }}>
+                  <h3 style={{ fontSize: 15, marginBottom: 8 }}>Edit a Previous Bottle</h3>
+                  <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 10 }}>
+                    Want to change your answer? Tap a bottle to re-edit your response.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {Object.keys(savedResponses).map((letter) => (
+                      <button
+                        key={letter}
+                        onClick={() => loadPreviousBottle(letter)}
+                        style={{
+                          padding: '8px 16px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                          border: '2px solid var(--rc-orange)', background: 'var(--rc-white)',
+                          color: 'var(--rc-orange)', cursor: 'pointer',
+                        }}
+                      >
+                        Bottle {letter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
                         style={{
                           width: 56,
                           height: 56,
@@ -410,18 +505,26 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                 </div>
               )}
             </div>
-          ) : currentBottle ? (
+          ) : (currentBottle || viewingPrevBottle) ? (
             <div>
               {/* Nose Notes Pill Box */}
-              {currentBottle.noseNotePills?.length > 0 && (
+              {activeBottle?.noseNotePills?.length > 0 && (
                 <div className="card" style={{ marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 16, marginBottom: 8 }}>Nose — What do you smell?</h3>
+                  <h3 style={{ fontSize: 16, marginBottom: 4 }}>Nose — What do you smell?</h3>
+                <p style={{ fontSize: 12, color: 'var(--rc-orange)', fontWeight: 600, marginBottom: 8 }}>
+                  {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.noseRealCount || '?'} of {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.noseNotePills?.length || '?'} are real — select up to {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.noseRealCount || '?'}
+                </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {currentBottle.noseNotePills.map((pill) => (
+                    {activeBottle.noseNotePills.map((pill) => (
                       <button
                         key={pill.text}
                         type="button"
-                        onClick={() => toggleNote('nose', pill.text)}
+                        onClick={() => {
+                      const limit = (viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.noseRealCount || 99;
+                      if (selectedNose.includes(pill.text) || selectedNose.length < limit) {
+                        toggleNote('nose', pill.text);
+                      }
+                    }}
                         title={pill.desc || ''}
                         style={{
                           padding: '6px 14px',
@@ -446,15 +549,23 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               )}
 
               {/* Palate Notes Pill Box */}
-              {currentBottle.palateNotePills?.length > 0 && (
+              {activeBottle?.palateNotePills?.length > 0 && (
                 <div className="card" style={{ marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 16, marginBottom: 8 }}>Palate — What do you taste?</h3>
+                  <h3 style={{ fontSize: 16, marginBottom: 4 }}>Palate — What do you taste?</h3>
+                <p style={{ fontSize: 12, color: 'var(--rc-orange)', fontWeight: 600, marginBottom: 8 }}>
+                  {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.palateRealCount || '?'} of {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.palateNotePills?.length || '?'} are real — select up to {(viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.palateRealCount || '?'}
+                </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {currentBottle.palateNotePills.map((pill) => (
+                    {activeBottle.palateNotePills.map((pill) => (
                       <button
                         key={pill.text}
                         type="button"
-                        onClick={() => toggleNote('palate', pill.text)}
+                        onClick={() => {
+                      const limit = (viewingPrevBottle ? allBottleData[viewingPrevBottle] : currentBottle)?.palateRealCount || 99;
+                      if (selectedPalate.includes(pill.text) || selectedPalate.length < limit) {
+                        toggleNote('palate', pill.text);
+                      }
+                    }}
                         title={pill.desc || ''}
                         style={{
                           padding: '6px 14px',
@@ -479,10 +590,10 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               )}
 
               {/* Flavor Profile Sliders */}
-              {currentBottle.flavorProfileKeys?.length > 0 && (
+              {activeBottle?.flavorProfileKeys?.length > 0 && (
                 <div className="card" style={{ marginBottom: 12 }}>
                   <h3 style={{ fontSize: 16, marginBottom: 12 }}>Flavor Profile</h3>
-                  {currentBottle.flavorProfileKeys.map((key) => (
+                  {activeBottle.flavorProfileKeys.map((key) => (
                     <div key={key} style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                         <span style={{ fontWeight: 600 }}>{FLAVOR_LABELS[key] || key}</span>
@@ -535,7 +646,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                 </div>
 
                 {/* Bottle Guess */}
-                {currentBottle.bottleOptions?.length > 0 && (
+                {activeBottle?.bottleOptions?.length > 0 && (
                   <div style={{ marginTop: 12 }}>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
                       Which bottle is this?
@@ -546,7 +657,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                       onChange={(e) => setBottleGuess(e.target.value)}
                     >
                       <option value="">— Take your best guess —</option>
-                      {currentBottle.bottleOptions.map((name) => (
+                      {activeBottle.bottleOptions.map((name) => (
                         <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
@@ -571,7 +682,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
               {/* Submit */}
               <button className="btn btn-primary btn-lg btn-block" onClick={handleSubmit}>
-                Submit Tasting for Bottle {currentBottle.letter}
+                Submit Tasting for Bottle {activeBottle?.letter || currentBottle?.letter}
               </button>
             </div>
           ) : (
