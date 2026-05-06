@@ -18,6 +18,63 @@ const FLAVOR_LABELS = {
   finishLength: 'Finish Length',
 };
 
+const NOTE_META = {
+  'caramel': { emoji: '🍮', desc: 'Rich, sweet, buttery burnt sugar' },
+  'vanilla': { emoji: '🍦', desc: 'Sweet, creamy, warm extract note' },
+  'cinnamon': { emoji: '🫚', desc: 'Warm, sweet bark spice' },
+  'oak': { emoji: '🪵', desc: 'Woody, tannic, barrel char' },
+  'honey': { emoji: '🍯', desc: 'Floral sweetness, golden syrup' },
+  'pepper': { emoji: '🌶️', desc: 'Sharp black pepper bite' },
+  'cherry': { emoji: '🍒', desc: 'Dark stone fruit, maraschino' },
+  'apple': { emoji: '🍎', desc: 'Crisp, tart, baked apple' },
+  'citrus': { emoji: '🍊', desc: 'Orange peel, lemon zest brightness' },
+  'tobacco': { emoji: '🍂', desc: 'Earthy, dried leaf, pipe tobacco' },
+  'leather': { emoji: '👞', desc: 'Rich, tanned hide, old library' },
+  'chocolate': { emoji: '🍫', desc: 'Dark cocoa, bittersweet richness' },
+  'coffee': { emoji: '☕', desc: 'Roasted espresso, dark mocha' },
+  'butterscotch': { emoji: '🧈', desc: 'Buttery, brown sugar, toffee' },
+  'toffee': { emoji: '🍬', desc: 'Chewy, caramelized butter candy' },
+  'maple': { emoji: '🍁', desc: 'Tree syrup sweetness, pancake morning' },
+  'brown sugar': { emoji: '🟫', desc: 'Molasses-tinged, warm baking' },
+  'nutmeg': { emoji: '🥜', desc: 'Warm, slightly sweet holiday spice' },
+  'clove': { emoji: '🌸', desc: 'Pungent, sharp, holiday ham glaze' },
+  'allspice': { emoji: '🫙', desc: 'Complex: cinnamon + nutmeg + clove' },
+  'mint': { emoji: '🌿', desc: 'Cool menthol, fresh spearmint' },
+  'dill': { emoji: '🌱', desc: 'Pickle brine, herbal anise' },
+  'herbal': { emoji: '🍃', desc: 'Green herbs, sage, thyme' },
+  'sage': { emoji: '🫒', desc: 'Earthy, savory dried herb' },
+  'rye spice': { emoji: '🌾', desc: 'Grain-forward peppery bite' },
+  'baking spice': { emoji: '🧁', desc: 'Cinnamon-nutmeg-clove blend' },
+  'dark fruit': { emoji: '🫐', desc: 'Plum, fig, blackberry jam' },
+  'dried fruit': { emoji: '🍇', desc: 'Raisin, date, prune sweetness' },
+  'banana': { emoji: '🍌', desc: 'Ripe banana, tropical ester' },
+  'coconut': { emoji: '🥥', desc: 'Tropical, creamy, suntan lotion' },
+  'smoke': { emoji: '💨', desc: 'Campfire, charred wood, peat' },
+  'char': { emoji: '🔥', desc: 'Burnt barrel interior, toast' },
+  'molasses': { emoji: '🏺', desc: 'Thick, dark, bittersweet syrup' },
+  'corn': { emoji: '🌽', desc: 'Sweet grain, fresh cornbread' },
+  'grain': { emoji: '🌾', desc: 'Cereal, fresh bread dough' },
+  'floral': { emoji: '🌺', desc: 'Rose, lavender, perfume notes' },
+  'rose': { emoji: '🌹', desc: 'Delicate floral, Turkish delight' },
+  'ginger': { emoji: '🫚', desc: 'Spicy root, warming zing' },
+  'anise': { emoji: '⭐', desc: 'Black licorice, star anise' },
+  'black walnut': { emoji: '🥜', desc: 'Bitter, tannic, earthy nut' },
+  'pecan': { emoji: '🥜', desc: 'Buttery, sweet toasted nut' },
+  'almond': { emoji: '🥜', desc: 'Marzipan, subtle nutty sweetness' },
+  'peanut': { emoji: '🥜', desc: 'Roasted shell nut, salty-sweet' },
+  'caramel corn': { emoji: '🍿', desc: 'Sweet kettle corn, carnival treat' },
+  'orange peel': { emoji: '🍊', desc: 'Bitter citrus rind, marmalade' },
+  'lemon': { emoji: '🍋', desc: 'Bright, tart, zesty citrus' },
+  'pine': { emoji: '🌲', desc: 'Resinous, fresh evergreen needle' },
+  'eucalyptus': { emoji: '🌿', desc: 'Menthol-forward, medicinal cool' },
+  'white pepper': { emoji: '⚪', desc: 'Sharp, less earthy than black' },
+  'black pepper': { emoji: '⚫', desc: 'Classic peppercorn heat and aroma' },
+};
+function getNoteMeta(text) {
+  const key = text.toLowerCase();
+  return NOTE_META[key] || { emoji: '👃', desc: '' };
+}
+
 export default function AdminEventLive({ eventId }) {
   const navigate = useNavigate();
   const { customer } = useAuth();
@@ -353,15 +410,47 @@ export default function AdminEventLive({ eventId }) {
                           </div>
                         )}
                         {currentBottle.product.community.noseNotes?.length > 0 && (
-                          <div style={{ marginTop: 8 }}>
-                            <strong>Nose:</strong>{' '}
-                            {currentBottle.product.community.noseNotes.join(', ')}
+                    <div style={{ marginTop: 8 }}>
+                      <strong>Nose:</strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        {currentBottle.product.community.noseNotes.map((note) => {
+                          const meta = getNoteMeta(note);
+                          return (
+                            <span key={note} title={meta.desc} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              padding: '2px 8px', borderRadius: 12, fontSize: 12,
+                              background: 'var(--rc-orange-light)', border: '1px solid var(--rc-orange)',
+                              cursor: meta.desc ? 'help' : 'default',
+                            }}>
+                              {meta.emoji} {note}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                           </div>
                         )}
                         {currentBottle.product.community.palateNotes?.length > 0 && (
-                          <div style={{ marginTop: 4 }}>
-                            <strong>Palate:</strong>{' '}
-                            {currentBottle.product.community.palateNotes.join(', ')}
+                    <div style={{ marginTop: 8 }}>
+                      <strong>Palate:</strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        {currentBottle.product.community.palateNotes.map((note) => {
+                          const meta = getNoteMeta(note);
+                          return (
+                            <span key={note} title={meta.desc} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              padding: '2px 8px', borderRadius: 12, fontSize: 12,
+                              background: 'var(--rc-gray-200)', border: '1px solid var(--rc-gray-400)',
+                              cursor: meta.desc ? 'help' : 'default',
+                            }}>
+                              {meta.emoji} {note}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                           </div>
                         )}
                       </div>
