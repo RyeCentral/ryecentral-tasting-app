@@ -78,6 +78,20 @@ async function getReviewProducts(first = 50, cursor = null) {
               }
             }
           }
+            noseProfile: metafield(namespace: "ryecentral", key: "profile_nose_notes") {
+              references(first: 50) {
+                edges {
+                  node {
+                    ... on Metaobject {
+                      fields {
+                        key
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
             productType
             tags
             vendor
@@ -167,6 +181,20 @@ async function getProductByHandle(handle) {
               }
             }
           }
+        noseProfile: metafield(namespace: "ryecentral", key: "profile_nose_notes") {
+          references(first: 50) {
+            edges {
+              node {
+                ... on Metaobject {
+                  fields {
+                    key
+                    value
+                  }
+                }
+              }
+            }
+          }
+        }
         productType
         tags
         vendor
@@ -628,10 +656,24 @@ function transformToTastingProduct(shopifyProduct) {
         .filter(Boolean);
     }
 
+    // Extract nose notes from profile_nose_notes metafield (priority source for nose pills)
+    let metafieldNoseNotes = [];
+    const noseMeta = shopifyProduct.noseProfile;
+    if (noseMeta && noseMeta.references && noseMeta.references.edges) {
+      metafieldNoseNotes = noseMeta.references.edges
+        .map(edge => {
+          const fields = edge.node && edge.node.fields;
+          if (!fields) return null;
+          const nameField = fields.find(f => f.key === 'display_name' || f.key === 'title' || f.key === 'name');
+          return nameField ? nameField.value : null;
+        })
+        .filter(Boolean);
+    }
+
     // Fallback: extract "Top Reported Flavors" pills from community section HTML
     const topReportedFlavors = extractTopReportedFlavors(html);
 
-  const noseNotes = extractNoteKeywords(tastingNotes.nose);
+  const noseNotes = metafieldNoseNotes.length > 0 ? metafieldNoseNotes : extractNoteKeywords(tastingNotes.nose)
     const palateNotes = metafieldFlavorNotes.length > 0 ? metafieldFlavorNotes : (topReportedFlavors.length > 0 ? topReportedFlavors : extractNoteKeywords(tastingNotes.palate));
 
   return {
