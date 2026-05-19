@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
+import NoteIcon from '../shared/NoteIcons';
 import wsService from '../../services/websocket';
 import * as api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -423,7 +424,7 @@ export default function AdminEventLive({ eventId }) {
                               background: 'var(--rc-orange-light)', border: '1px solid var(--rc-orange)',
                               cursor: meta.desc ? 'help' : 'default',
                             }}>
-                              {meta.emoji} {note}
+                              <NoteIcon name={note} size={14} /> {note}
                             </span>
                           );
                         })}
@@ -443,7 +444,7 @@ export default function AdminEventLive({ eventId }) {
                               background: 'var(--rc-gray-200)', border: '1px solid var(--rc-gray-400)',
                               cursor: meta.desc ? 'help' : 'default',
                             }}>
-                              {meta.emoji} {note}
+                              <NoteIcon name={note} size={14} /> {note}
                             </span>
                           );
                         })}
