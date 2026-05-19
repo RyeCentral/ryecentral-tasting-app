@@ -704,6 +704,7 @@ export default function AdminEventLive({ eventId }) {
                       End Event &amp; Archive
                     </button>
                   </div>
+                  </div>
                 </>
               )}
             </div>
