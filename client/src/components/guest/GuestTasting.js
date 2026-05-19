@@ -3,6 +3,7 @@ import TopBar from '../shared/TopBar';
 import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
 import ReviewPoster from '../shared/ReviewPoster';
+import NoteIcon from '../shared/NoteIcons';
 import wsService from '../../services/websocket';
 
 const FLAVOR_LABELS = {
@@ -539,7 +540,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           transition: 'all 0.15s',
                         }}
                       >
-                        {pill.emoji && <span style={{ marginRight: 4 }}>{pill.emoji}</span>}{pill.text}
+                        <NoteIcon name={pill.text} size={14} /><span style={{ marginLeft: 4 }}>{pill.text}</span>
                       </button>
                     ))}
                   </div>
@@ -580,7 +581,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           transition: 'all 0.15s',
                         }}
                       >
-                        {pill.emoji && <span style={{ marginRight: 4 }}>{pill.emoji}</span>}{pill.text}
+                        <NoteIcon name={pill.text} size={14} /><span style={{ marginLeft: 4 }}>{pill.text}</span>
                       </button>
                     ))}
                   </div>
