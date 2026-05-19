@@ -430,8 +430,6 @@ export default function AdminEventLive({ eventId }) {
                       </div>
                     </div>
                   )}
-                          </div>
-                        )}
                         {currentBottle.product.community.palateNotes?.length > 0 && (
                     <div style={{ marginTop: 8 }}>
                       <strong>Palate:</strong>
@@ -452,8 +450,6 @@ export default function AdminEventLive({ eventId }) {
                       </div>
                     </div>
                   )}
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -703,7 +699,6 @@ export default function AdminEventLive({ eventId }) {
                     >
                       End Event &amp; Archive
                     </button>
-                  </div>
                   </div>
                 </>
               )}
