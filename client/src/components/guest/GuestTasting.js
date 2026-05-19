@@ -6,7 +6,7 @@ import ReviewPoster from '../shared/ReviewPoster';
 import wsService from '../../services/websocket';
 
 const FLAVOR_LABELS = {
-  sweetness: 'Sweetness'
+  sweetness: 'Sweetness',
   ryeSpice: 'Rye Spice',
   herbalMint: 'Herbal/Mint',
   fruit: 'Fruit',
