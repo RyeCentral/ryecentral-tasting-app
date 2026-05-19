@@ -6,7 +6,7 @@ import ReviewPoster from '../shared/ReviewPoster';
 import wsService from '../../services/websocket';
 
 const FLAVOR_LABELS = {
-  sweetness: 'Sweetness',
+  sweetness: 'Sweetness'
   ryeSpice: 'Rye Spice',
   herbalMint: 'Herbal/Mint',
   fruit: 'Fruit',
@@ -426,6 +426,46 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         key={bottle.letter}
                         type="button"
                         onClick={() => setFavoriteBottle(bottle.letter)}
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 12,
+                          border: '2px solid',
+                          borderColor: favoriteBottle === bottle.letter ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                          background: favoriteBottle === bottle.letter ? 'var(--rc-orange)' : 'var(--rc-white)',
+                          color: favoriteBottle === bottle.letter ? '#fff' : 'var(--rc-black)',
+                          fontSize: 20,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {bottle.letter}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleFavoriteSubmit}
+                    disabled={!favoriteBottle}
+                  >
+                    Lock In Favorite
+                  </button>
+                </div>
+              )}
+
+              {allBottlesTasted && favoriteSubmitted && (
+                <div className="card" style={{ marginTop: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
+                  <h3>Favorite Locked: Bottle {favoriteBottle}</h3>
+                  <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
+                    Great pick! Waiting for the host to reveal the results...
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (currentBottle || viewingPrevBottle) ? (
+            <div>
 
               {/* Palate Reset Tips — shown between bottles */}
               {showResetTips && (
@@ -467,46 +507,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                 </div>
               )}
-                        style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 12,
-                          border: '2px solid',
-                          borderColor: favoriteBottle === bottle.letter ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
-                          background: favoriteBottle === bottle.letter ? 'var(--rc-orange)' : 'var(--rc-white)',
-                          color: favoriteBottle === bottle.letter ? '#fff' : 'var(--rc-black)',
-                          fontSize: 20,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        {bottle.letter}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleFavoriteSubmit}
-                    disabled={!favoriteBottle}
-                  >
-                    Lock In Favorite
-                  </button>
-                </div>
-              )}
 
-              {allBottlesTasted && favoriteSubmitted && (
-                <div className="card" style={{ marginTop: 16, textAlign: 'center' }}>
-                  <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
-                  <h3>Favorite Locked: Bottle {favoriteBottle}</h3>
-                  <p style={{ color: 'var(--rc-gray-500)', fontSize: 14 }}>
-                    Great pick! Waiting for the host to reveal the results...
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (currentBottle || viewingPrevBottle) ? (
-            <div>
               {/* Nose Notes Pill Box */}
               {activeBottle?.noseNotePills?.length > 0 && (
                 <div className="card" style={{ marginBottom: 12 }}>
