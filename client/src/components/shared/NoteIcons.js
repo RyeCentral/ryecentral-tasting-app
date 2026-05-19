@@ -98,7 +98,7 @@ const icons = {
       {/* Shine */}
       <path d="M7 6 Q8 5.5 9 6" stroke={C.cream} strokeWidth="0.5" opacity="0.6" />
     </svg>
-  ),  ),
+  ),
 
   butterscotch: (sz) => (
     <svg width={sz} height={sz} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
