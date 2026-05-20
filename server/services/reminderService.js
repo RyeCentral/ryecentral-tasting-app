@@ -6,7 +6,7 @@
  *   - Reminder 1: ~24 hours after event ends
  *   - Reminder 2: ~3 days after event ends
  *
- * Uses Resend API (same as authService).
+ * Uses Resend API (same as authService). 
  */
 const config = require('../config/env');
 
