@@ -64,11 +64,11 @@ function buildReminderEmailHtml({ guestName, eventName, bottleCount, appUrl, isS
           </div>
 
           <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;">
-            <span style="font-size: 22px; flex-shrink: 0;">💰</span>
+            <span style="font-size: 22px; flex-shrink: 0;">✍️</span>
             <div>
-              <strong style="color: #1a1a1a; font-size: 14px;">Earn \$10 per review</strong>
+              <strong style="color: #1a1a1a; font-size: 14px;">Share your tasting experience</strong>
               <p style="color: #666; font-size: 13px; margin: 2px 0 0; line-height: 1.4;">
-                Get a \$10 Gift Voucher for every review you post — that's up to \$${(bottleCount || 4) * 10} in rewards!
+                Your blind tasting perspective is unique and valuable — post your notes to help fellow rye enthusiasts make smarter buying decisions.
               </p>
             </div>
           </div>
@@ -150,7 +150,7 @@ async function sendReminderEmail({ to, guestName, eventName, bottleCount, appUrl
   const fromEmail = config.MAIL_FROM || 'RyeCentral Tasting <onboarding@resend.dev>';
   const subject = isSecondReminder
     ? 'Last chance! Your tasting reviews are waiting 🥃'
-    : 'Post your tasting reviews & earn rewards 🥃';
+    : 'Your tasting reviews are ready to share! 🥃';
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
