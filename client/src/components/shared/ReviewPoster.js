@@ -127,7 +127,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
             background: 'var(--rc-orange)', color: '#fff', borderRadius: 12,
             fontSize: 12, fontWeight: 700,
           }}>
-            Get a $10 Gift Voucher for each review posted!
+            Your reviews help the rye community!
           </div>
         </div>
         <span style={{ fontSize: 20, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -149,9 +149,8 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                 Can we post your tasting results on RyeCentral?
               </h3>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
-                Your blind tasting notes help the rye whiskey community! Plus, earn a
-                <span style={{ color: 'var(--rc-orange)', fontWeight: 700 }}> $10 Gift Voucher </span>
-                for every review posted.
+                Your blind tasting notes are incredibly valuable to the rye whiskey community!
+                Share your honest impressions and help fellow enthusiasts discover their next favorite bottle.
               </p>
 
               {/* Email input */}
@@ -216,8 +215,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                 All Reviews Posted — Thank You!
               </h3>
               <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, margin: '0 0 4px', lineHeight: 1.5 }}>
-                You earned <span style={{ color: 'var(--rc-orange)', fontWeight: 700 }}>
-                {postedCount * 10} in Gift Vouchers</span> — check your email!
+                Your {postedCount} review{postedCount !== 1 ? 's are' : ' is'} now helping the rye community!
               </p>
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>
                 Your tasting notes are now live on each product page below.
