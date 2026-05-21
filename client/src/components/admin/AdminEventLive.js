@@ -441,7 +441,7 @@ export default function AdminEventLive({ eventId }) {
                             <span key={note} title={meta.desc} style={{
                               display: 'inline-flex', alignItems: 'center', gap: 3,
                               padding: '2px 8px', borderRadius: 12, fontSize: 12,
-                              background: 'var(--rc-gray-200)', border: '1px solid var(--rc-gray-400)',
+                              background: 'var(--rc-orange-light)', border: '1px solid var(--rc-orange)',
                               cursor: meta.desc ? 'help' : 'default',
                             }}>
                               <NoteIcon name={note} size={14} /> {note}

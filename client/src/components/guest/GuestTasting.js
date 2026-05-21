@@ -594,7 +594,10 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               {/* Flavor Profile Sliders */}
               {activeBottle?.flavorProfileKeys?.length > 0 && (
                 <div className="card" style={{ marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 16, marginBottom: 12 }}>Flavor Profile</h3>
+                  <h3 style={{ fontSize: 16, marginBottom: 4 }}>Flavor Profile</h3>
+                  <p style={{ fontSize: 13, color: 'var(--rc-gray-500)', fontStyle: 'italic', marginBottom: 12 }}>
+                    Use the sliders to match what you taste
+                  </p>
                   {activeBottle.flavorProfileKeys.map((key) => (
                     <div key={key} style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
@@ -633,7 +636,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      Community Rating Guess
+                      Community Rating
                     </label>
                     <input
                       className="form-input"
@@ -641,6 +644,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                       min="1"
                       max="5"
                       step="0.1"
+                      placeholder="Guess e.g. 4.2"
                       value={rating}
                       onChange={(e) => setRating(parseFloat(e.target.value))}
                     />
