@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './styles/theme.css';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -8,13 +8,19 @@ import AdminEventLiveRoute from './components/admin/AdminEventLiveRoute';
 import GuestJoin from './components/guest/GuestJoin';
 import GuestTastingRoute from './components/guest/GuestTastingRoute';
 
+/** Redirect / to /admin while preserving SSO query params */
+function RootRedirect() {
+  const location = useLocation();
+  return <Navigate to={"/admin" + location.search} replace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
           {/* Admin flow — requires RyeCentral account */}
-          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route
             path="/admin"
             element={
