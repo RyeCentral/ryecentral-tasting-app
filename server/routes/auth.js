@@ -9,6 +9,7 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const {
   generateCode,
   storeCode,
@@ -150,33 +151,68 @@ router.post('/admin-grant', (req, res) => {
 
 /**
  * POST /api/auth/sso-login
- * SSO-style login for users already logged into RyeCentral.com.
- * Receives the customer email from the Shopify storefront,
- * validates the request origin, and issues a JWT
- * without requiring an access code.
+ * SSO login for users already logged into RyeCentral.com.
+ * Verifies an HMAC-signed token from the Shopify storefront.
+ *
+ * Body: { email, ts, sig }
+ *   - email: customer email from Shopify Liquid
+ *   - ts: Unix timestamp (seconds) when the link was generated
+ *   - sig: HMAC-SHA256 of "email|ts" using SSO_SECRET
+ *
+ * The signature prevents forged SSO links — only the Shopify
+ * Liquid template (server-rendered) knows the shared secret.
+ * Tokens expire after 5 minutes to prevent replay.
  */
 router.post('/sso-login', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, ts, sig } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const ssoSecret = env.SSO_SECRET;
 
-    // Validate origin — accept from our Shopify storefront OR same-origin (the tasting app itself)
-    const origin = req.get('origin') || req.get('referer') || '';
-    const allowedDomain = env.SHOPIFY_PUBLIC_DOMAIN || 'www.ryecentral.com';
-    const appUrl = env.APP_URL || '';
-    const isAllowedOrigin = origin.includes(allowedDomain) || origin.includes('localhost') || (appUrl && origin.includes(appUrl)) || origin.includes('railway.app');
+    // If SSO_SECRET is configured, require and verify signature
+    if (ssoSecret) {
+      if (!ts || !sig) {
+        console.warn('SSO login rejected \u2014 missing ts/sig for:', cleanEmail);
+        return res.status(403).json({ error: 'SSO signature required' });
+      }
 
-    if (!isAllowedOrigin) {
-      console.warn('SSO login rejected — invalid origin:', origin);
-      return res.status(403).json({ error: 'SSO login not allowed from this origin' });
+      // Check timestamp freshness (5 minute window)
+      const now = Math.floor(Date.now() / 1000);
+      const timestamp = parseInt(ts, 10);
+      if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
+        console.warn('SSO login rejected \u2014 expired token for:', cleanEmail, '| age:', now - timestamp, 's');
+        return res.status(403).json({ error: 'SSO link has expired. Please return to RyeCentral.com and try again.' });
+      }
+
+      // Verify HMAC signature
+      const expectedSig = crypto
+        .createHmac('sha256', ssoSecret)
+        .update(cleanEmail + '|' + ts)
+        .digest('hex');
+
+      if (sig !== expectedSig) {
+        console.warn('SSO login rejected \u2014 invalid signature for:', cleanEmail);
+        return res.status(403).json({ error: 'Invalid SSO signature' });
+      }
+    } else {
+      // No SSO_SECRET configured \u2014 fall back to origin check (dev/staging)
+      const origin = req.get('origin') || req.get('referer') || '';
+      const allowedDomain = env.SHOPIFY_PUBLIC_DOMAIN || 'www.ryecentral.com';
+      const appUrl = env.APP_URL || '';
+      const isAllowedOrigin = origin.includes(allowedDomain) || origin.includes('localhost') || (appUrl && origin.includes(appUrl)) || origin.includes('railway.app');
+
+      if (!isAllowedOrigin) {
+        console.warn('SSO login rejected \u2014 invalid origin:', origin);
+        return res.status(403).json({ error: 'SSO login not allowed from this origin' });
+      }
     }
 
-    // Customer verified — issue JWT (same as verify-code flow)
+    // Verified \u2014 issue JWT
     console.log('SSO login granted for:', cleanEmail);
     const token = issueAppToken(cleanEmail);
 
