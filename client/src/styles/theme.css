@@ -1,4 +1,4 @@
-/* ── RyeCentral Tasting App Theme ──────────────────────── */
+/* ── RyeCentral Tasting App Theme ──────────────────────────── */
 
 :root {
   /* Brand colors from ryecentral.com */
@@ -43,7 +43,7 @@
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.2);
 }
 
-/* ── Global Reset ─────────────────────────────────────── */
+/* ── Global Reset ───────────────────────────────────────── */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -196,10 +196,14 @@ body {
 
 .topbar {
   background: var(--rc-black);
-  padding: 12px var(--space-md);
+  padding: 10px var(--space-md);
+}
+
+.topbar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .topbar-brand {
@@ -211,6 +215,8 @@ body {
   font-size: 18px;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .topbar-brand span {
@@ -223,7 +229,50 @@ body {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.topbar-link {
+  color: var(--rc-orange);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 3px 8px;
+  border: 1px solid var(--rc-orange);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.topbar-user {
+  color: #888;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.topbar-signout {
+  background: none;
+  border: 1px solid #555;
+  color: #aaa;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-main);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.topbar-event {
+  color: #aaa;
+  font-size: 12px;
+  padding-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Page Layout ──────────────────────────────────────── */
@@ -231,6 +280,7 @@ body {
 .page {
   padding: var(--space-lg) 0;
   min-height: calc(100vh - 52px);
+  overflow-x: hidden;
 }
 
 .page-title {
@@ -545,5 +595,36 @@ body {
   .invite-code {
     font-size: 32px;
     letter-spacing: 4px;
+  }
+
+  .topbar {
+    padding: 8px 12px;
+  }
+
+  .topbar-brand {
+    font-size: 15px;
+  }
+
+  .topbar-brand span {
+    font-size: 12px;
+  }
+
+  .topbar-link {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .topbar-user {
+    max-width: 70px;
+    font-size: 11px;
+  }
+
+  .topbar-signout {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .topbar-event {
+    font-size: 11px;
   }
 }
