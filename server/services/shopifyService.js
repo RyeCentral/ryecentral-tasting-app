@@ -713,18 +713,12 @@ function transformToTastingProduct(shopifyProduct) {
 
 /**
  * Get all review products, transformed for the tasting app.
- * Uses the public REST collection endpoint (works for all Online Store products).
- * Falls back to the Storefront GraphQL API if the REST fetch fails.
+ * Uses the Storefront GraphQL API as primary (includes metafield data for nose/palate notes).
+ * Falls back to the public REST collection endpoint if GraphQL fails.
  */
 async function getAllTastingProducts() {
   try {
-    // Primary: fetch from the public collection REST endpoint
-    const restProducts = await getCollectionProductsREST();
-    return restProducts.map(transformToTastingProduct).filter(Boolean);
-  } catch (err) {
-    console.warn('REST collection fetch failed, falling back to Storefront GraphQL:', err.message);
-
-    // Fallback: use the Storefront GraphQL API
+    // Primary: use Storefront GraphQL API (includes metafield data for accurate pill notes)
     let allProducts = [];
     let cursor = null;
     let hasMore = true;
@@ -738,7 +732,14 @@ async function getAllTastingProducts() {
       cursor = result.pageInfo.endCursor;
     }
 
+    console.log(`Fetched ${allProducts.length} products via Storefront GraphQL (with metafields)`);
     return allProducts;
+  } catch (err) {
+    console.warn('Storefront GraphQL fetch failed, falling back to REST:', err.message);
+
+    // Fallback: REST endpoint (no metafield data — nose notes will use prose extraction)
+    const restProducts = await getCollectionProductsREST();
+    return restProducts.map(transformToTastingProduct).filter(Boolean);
   }
 }
 
