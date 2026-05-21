@@ -30,12 +30,14 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ssoEmail = params.get('sso_email');
+    const ssoTs = params.get('sso_ts');
+    const ssoSig = params.get('sso_sig');
     if (ssoEmail) {
       // Clean the URL to remove the sso_email param
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
       // Attempt SSO login
-      ssoLogin(ssoEmail).then(success => {
+      ssoLogin(ssoEmail, ssoTs, ssoSig).then(success => {
         if (!success) {
           console.log('SSO login failed, falling back to normal login');
         }
