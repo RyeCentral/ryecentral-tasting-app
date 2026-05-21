@@ -260,25 +260,37 @@ function handleMessage(ws, room, event, message) {
 
 /**
  * Strip product details from bottle data for guests (blind tasting!)
+ *
+ * IMPORTANT: Pill notes (real + decoy) are generated ONCE per bottle and cached.
+ * This prevents users from refreshing/reconnecting to see different decoys,
+ * which would let them identify the real notes by spotting which ones persist.
  */
 function sanitizeBottleForGuest(bottle, event) {
   if (!bottle) return null;
 
-  const community = bottle.product?.community || {};
+  // Use cached pills if already generated for this bottle
+  if (!bottle._cachedPills) {
+    const community = bottle.product?.community || {};
+    const nosePillData = buildPillBoxNotes(community.noseNotes || []);
+    const palatePillData = buildPillBoxNotes(community.palateNotes || []);
 
-  // Build pill-box notes: real notes + 50% random decoys
-  const nosePillData = buildPillBoxNotes(community.noseNotes || []);
-  const palatePillData = buildPillBoxNotes(community.palateNotes || []);
+    bottle._cachedPills = {
+      noseNotePills: nosePillData.pills,
+      noseRealCount: nosePillData.realCount,
+      palateNotePills: palatePillData.pills,
+      palateRealCount: palatePillData.realCount,
+    };
+  }
 
   // List of all bottle names for the "guess which bottle" dropdown
   const bottleOptions = event.bottles.map((b) => b.product.title);
 
   return {
     letter: bottle.letter,
-    noseNotePills: nosePillData.pills,
-    noseRealCount: nosePillData.realCount,
-    palateNotePills: palatePillData.pills,
-    palateRealCount: palatePillData.realCount,
+    noseNotePills: bottle._cachedPills.noseNotePills,
+    noseRealCount: bottle._cachedPills.noseRealCount,
+    palateNotePills: bottle._cachedPills.palateNotePills,
+    palateRealCount: bottle._cachedPills.palateRealCount,
     bottleOptions, // All bottle names for guessing
     flavorProfileKeys: ['sweetness', 'ryeSpice', 'herbalMint', 'fruit', 'oakVanilla', 'body', 'heat', 'finishLength'],
   };
