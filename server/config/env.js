@@ -32,4 +32,8 @@ module.exports = {
 
   // App URL (for QR codes and invite links — auto-detected from request if not set)
   APP_URL: process.env.APP_URL || '',
+
+  // SSO shared secret — used to verify HMAC-signed links from ryecentral.com
+  // Must match the key used in the Shopify Liquid template
+  SSO_SECRET: process.env.SSO_SECRET || '',
 };
