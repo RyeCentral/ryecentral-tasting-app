@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
     const res = await fetch('/api/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, ts, sig }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -122,7 +122,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   // SSO login — auto-authenticate users already logged into RyeCentral.com
-  const ssoLogin = async (email) => {
+  const ssoLogin = async (email, ts, sig) => {
     try {
       setLoading(true);
       const res = await fetch('/api/auth/sso-login', {
@@ -134,8 +134,7 @@ export function AuthProvider({ children }) {
       if (!res.ok) throw new Error(data.error || 'SSO login failed');
       localStorage.setItem('tasting_token', data.token);
       localStorage.setItem('tasting_email', data.email);
-      setToken(data.token);
-      setCustomer({ email: data.email });
+      saveSession(data.token, { email: data.email, firstName: data.email.split('@')[0], displayName: data.email.split('@')[0] });etCustomer({ email: data.email });
       return true;
     } catch (err) {
       console.error('SSO login error:', err.message);
