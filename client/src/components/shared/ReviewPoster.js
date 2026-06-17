@@ -218,7 +218,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                 Your {postedCount} review{postedCount !== 1 ? 's are' : ' is'} now helping the rye community!
               </p>
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>
-                Your tasting notes are now live on each product page below.
+                It can take up to 5 minutes for your reviews to appear on the live product pages below.
               </p>
             </div>
           )}
@@ -368,7 +368,7 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
                       href={'https://www.ryecentral.com/products/' + (bottle.product?.handle || '')}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--rc-orange)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563eb', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
                     >
                       🔍 View on RyeCentral →
                     </a>
