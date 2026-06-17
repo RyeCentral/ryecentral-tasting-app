@@ -541,7 +541,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           background: selectedNose.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-white)',
                           cursor: 'pointer',
                           fontSize: 13,
-                          fontWeight: selectedNose.includes(pill.text) ? 600 : 400,
+                          fontWeight: 500,
                           transition: 'all 0.15s',
                         }}
                       >
@@ -582,7 +582,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                           background: selectedPalate.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-white)',
                           cursor: 'pointer',
                           fontSize: 13,
-                          fontWeight: selectedPalate.includes(pill.text) ? 600 : 400,
+                          fontWeight: 500,
                           transition: 'all 0.15s',
                         }}
                       >
