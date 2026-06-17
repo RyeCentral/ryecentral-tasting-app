@@ -6,6 +6,11 @@ import ReviewPoster from '../shared/ReviewPoster';
 import NoteIcon from '../shared/NoteIcons';
 import wsService from '../../services/websocket';
 
+const DEFAULT_FLAVOR_PROFILE = {
+  sweetness: 5, ryeSpice: 5, herbalMint: 5, fruit: 5,
+  oakVanilla: 5, body: 5, heat: 5, finishLength: 5,
+};
+
 const FLAVOR_LABELS = {
   sweetness: 'Sweetness',
   ryeSpice: 'Rye Spice',
@@ -32,7 +37,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   // Form state for current bottle
   const [selectedNose, setSelectedNose] = useState([]);
   const [selectedPalate, setSelectedPalate] = useState([]);
-  const [flavorProfile, setFlavorProfile] = useState({});
+  const [flavorProfile, setFlavorProfile] = useState({ ...DEFAULT_FLAVOR_PROFILE });
   const [priceGuess, setPriceGuess] = useState('');
   const [bottleGuess, setBottleGuess] = useState('');
   const [rating, setRating] = useState(4.0);
@@ -136,7 +141,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const resetForm = useCallback(() => {
     setSelectedNose([]);
     setSelectedPalate([]);
-    setFlavorProfile({});
+    setFlavorProfile({ ...DEFAULT_FLAVOR_PROFILE });
     setPriceGuess('');
     setBottleGuess('');
     setRating(4.0);
@@ -200,7 +205,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     if (!saved) return;
     setSelectedNose(saved.selectedNose || []);
     setSelectedPalate(saved.selectedPalate || []);
-    setFlavorProfile(saved.flavorProfile || {});
+    setFlavorProfile({ ...DEFAULT_FLAVOR_PROFILE, ...(saved.flavorProfile || {}) });
     setPriceGuess(saved.priceGuess || '');
     setBottleGuess(saved.bottleGuess || '');
     setRating(saved.rating || 4.0);
