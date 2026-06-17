@@ -92,6 +92,14 @@ async function getReviewProducts(first = 50, cursor = null) {
                 }
               }
             }
+            mfSweetness: metafield(namespace: "ryecentral", key: "profile_sweetness") { value }
+            mfRyeSpice: metafield(namespace: "ryecentral", key: "profile_rye_spice") { value }
+            mfHerbalMint: metafield(namespace: "ryecentral", key: "profile_herbal_mint") { value }
+            mfFruit: metafield(namespace: "ryecentral", key: "profile_fruit") { value }
+            mfOakVanilla: metafield(namespace: "ryecentral", key: "profile_oak_vanilla") { value }
+            mfBody: metafield(namespace: "ryecentral", key: "profile_body") { value }
+            mfHeat: metafield(namespace: "ryecentral", key: "profile_heat") { value }
+            mfFinishLength: metafield(namespace: "ryecentral", key: "profile_finish_length") { value }
             productType
             tags
             vendor
@@ -634,8 +642,20 @@ function transformToTastingProduct(shopifyProduct) {
     ? `gid://shopify/Product/${shopifyProduct.id}`
     : shopifyProduct.id;
 
-  // Parse all structured data from HTML
-  const flavorProfile = parseFlavorProfile(html);
+  // Parse flavor profile from metafields (source of truth), fall back to HTML
+  const metafieldFlavorProfile = {
+    sweetness: shopifyProduct.mfSweetness ? parseFloat(shopifyProduct.mfSweetness.value) : null,
+    ryeSpice: shopifyProduct.mfRyeSpice ? parseFloat(shopifyProduct.mfRyeSpice.value) : null,
+    herbalMint: shopifyProduct.mfHerbalMint ? parseFloat(shopifyProduct.mfHerbalMint.value) : null,
+    fruit: shopifyProduct.mfFruit ? parseFloat(shopifyProduct.mfFruit.value) : null,
+    oakVanilla: shopifyProduct.mfOakVanilla ? parseFloat(shopifyProduct.mfOakVanilla.value) : null,
+    body: shopifyProduct.mfBody ? parseFloat(shopifyProduct.mfBody.value) : null,
+    heat: shopifyProduct.mfHeat ? parseFloat(shopifyProduct.mfHeat.value) : null,
+    finishLength: shopifyProduct.mfFinishLength ? parseFloat(shopifyProduct.mfFinishLength.value) : null,
+  };
+  const hasMetafieldProfile = Object.values(metafieldFlavorProfile).some(v => v !== null);
+  const htmlFlavorProfile = parseFlavorProfile(html);
+  const flavorProfile = hasMetafieldProfile ? metafieldFlavorProfile : htmlFlavorProfile;
   const tastingNotes = parseTastingNotes(html);
   const communityScore = parseCommunityScore(html);
   const quickFacts = parseQuickFacts(html);
