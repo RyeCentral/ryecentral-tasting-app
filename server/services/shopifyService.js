@@ -100,6 +100,8 @@ async function getReviewProducts(first = 50, cursor = null) {
             mfBody: metafield(namespace: "ryecentral", key: "profile_body") { value }
             mfHeat: metafield(namespace: "ryecentral", key: "profile_heat") { value }
             mfFinishLength: metafield(namespace: "ryecentral", key: "profile_finish_length") { value }
+            mfCommunityScore: metafield(namespace: "ryecentral", key: "community_score") { value }
+            mfCommunityRatingCount: metafield(namespace: "ryecentral", key: "community_rating_count") { value }
             productType
             tags
             vendor
@@ -203,6 +205,8 @@ async function getProductByHandle(handle) {
             }
           }
         }
+        mfCommunityScore: metafield(namespace: "ryecentral", key: "community_score") { value }
+        mfCommunityRatingCount: metafield(namespace: "ryecentral", key: "community_rating_count") { value }
         productType
         tags
         vendor
@@ -657,7 +661,18 @@ function transformToTastingProduct(shopifyProduct) {
   const htmlFlavorProfile = parseFlavorProfile(html);
   const flavorProfile = hasMetafieldProfile ? metafieldFlavorProfile : htmlFlavorProfile;
   const tastingNotes = parseTastingNotes(html);
-  const communityScore = parseCommunityScore(html);
+
+  // Community score: metafield is source of truth, fall back to HTML parsing
+  const metafieldCommunityScore = shopifyProduct.mfCommunityScore
+    ? parseFloat(shopifyProduct.mfCommunityScore.value)
+    : null;
+  const communityScore = metafieldCommunityScore !== null ? metafieldCommunityScore : parseCommunityScore(html);
+
+  // Community rating count: metafield is source of truth
+  const communityRatingCount = shopifyProduct.mfCommunityRatingCount
+    ? parseInt(shopifyProduct.mfCommunityRatingCount.value, 10)
+    : null;
+
   const quickFacts = parseQuickFacts(html);
 
   // Extract individual note keywords for the pill-box game
@@ -708,6 +723,7 @@ function transformToTastingProduct(shopifyProduct) {
     // Community review data (what the admin sees, used for scoring)
     community: {
       score: communityScore,
+      ratingCount: communityRatingCount,
       noseNotes,       // Array of keyword strings for pill-box game
       palateNotes,     // Array of keyword strings for pill-box game
       noseProse: tastingNotes.nose,     // Full prose description
