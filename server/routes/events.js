@@ -306,7 +306,8 @@ router.post('/:id/feedback', async (req, res) => {
   // Store feedback on the event
   event.hostFeedback = { rating, comment, submittedAt: new Date().toISOString() };
 
-  // Also submit as a store-level Judge.me review
+  // Submit as a product-level Judge.me review on the "Home Rye Whiskey Tasting Experience" product
+  // This makes reviews visible via the Judge.me widget on the tasting event pages
   if (config.JUDGEME_API_TOKEN) {
     try {
       const reviewTitle = `Home Tasting Event: ${event.name}`;
@@ -314,17 +315,23 @@ router.post('/:id/feedback', async (req, res) => {
         ? `Hosted a blind rye whiskey tasting event "${event.name}" using the RyeCentral Home Tasting App.\n\n${comment}`
         : `Hosted a blind rye whiskey tasting event "${event.name}" using the RyeCentral Home Tasting App.`;
 
-      await submitStoreReview({
+      const tastingProduct = {
+        id: 'gid://shopify/Product/9929296216312',
+        handle: 'home-rye-whiskey-tasting-experience',
+      };
+
+      await submitReview({
         apiToken: config.JUDGEME_API_TOKEN,
-        name: hostName || 'Tasting Host',
-        email: hostEmail || `host-${req.params.id}@tasting.ryecentral.com`,
-        rating,
-        title: reviewTitle,
-        body: reviewBody,
+        guestName: hostName || 'Tasting Host',
+        guestEmail: hostEmail || `host-${req.params.id}@tasting.ryecentral.com`,
+        response: { rating },
+        product: tastingProduct,
+        titleOverride: reviewTitle,
+        bodyOverride: reviewBody,
       });
-      console.log('Host feedback submitted to Judge.me as store review');
+      console.log('Host feedback submitted to Judge.me on tasting experience product');
     } catch (err) {
-      console.error('Judge.me store review error (non-critical):', err.message);
+      console.error('Judge.me product review error (non-critical):', err.message);
     }
   }
 

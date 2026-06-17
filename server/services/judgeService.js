@@ -160,10 +160,10 @@ async function getJudgeMeProductId(shopifyProductId, apiToken) {
  *
  * @returns {Object} { success: bool, title, body, rating }
  */
-async function submitReview({ apiToken, response, product, guestName, guestEmail, rating }) {
-  // Generate title and body (allow overrides from guest edits)
-  const title = response._editedTitle || generateReviewTitle(response, product);
-  const body = response._editedBody || generateReviewBody(response, product, guestName);
+async function submitReview({ apiToken, response, product, guestName, guestEmail, rating, titleOverride, bodyOverride }) {
+  // Generate title and body (allow overrides from guest edits, then caller overrides)
+  const title = titleOverride || response._editedTitle || generateReviewTitle(response, product);
+  const body = bodyOverride || response._editedBody || generateReviewBody(response, product, guestName);
   const starRating = Math.round(rating || response.rating || 3);
 
   // Get Judge.me internal product ID
