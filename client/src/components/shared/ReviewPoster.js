@@ -19,7 +19,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
   const [submitted, setSubmitted] = useState({});
   const [loading, setLoading] = useState({});
   const [errors, setErrors] = useState({});
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   const [bulkError, setBulkError] = useState(null);
@@ -112,25 +112,8 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
 
   return (
     <div style={{ marginTop: 20 }}>
-      {/* Single CTA button when not yet expanded / not yet posted */}
-      {!expanded && !allPosted && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          style={{
-            display: 'block', width: '100%', padding: '16px 20px',
-            background: 'var(--rc-orange)', color: '#fff', border: 'none',
-            borderRadius: 14, cursor: 'pointer', textAlign: 'center',
-            fontSize: 16, fontWeight: 800, lineHeight: 1.4,
-            boxShadow: '0 4px 14px rgba(232,134,12,0.35)',
-          }}
-        >
-          Post Your Reviews to RyeCentral to Unlock Your Comparison Cards Below
-        </button>
-      )}
-
       {(expanded || allPosted) && (
-        <div className="card" style={{ marginTop: expanded && !allPosted ? 16 : 0 }}>
+        <div className="card">
           {/* Big CTA section */}
           {!allPosted && (
             <div style={{
@@ -140,11 +123,10 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
             }}>
               <div style={{ fontSize: 22, marginBottom: 4 }}>🥃</div>
               <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 6px' }}>
-                Can we post your tasting results on RyeCentral?
+                Post Your Reviews to Unlock Your Comparison Cards
               </h3>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
-                Your blind tasting notes are incredibly valuable to the rye whiskey community!
-                Share your honest impressions and help fellow enthusiasts discover their next favorite bottle.
+                See how your blind tasting answers stacked up against the community — your comparison breakdown appears below once you post.
               </p>
 
               {/* Email input */}
