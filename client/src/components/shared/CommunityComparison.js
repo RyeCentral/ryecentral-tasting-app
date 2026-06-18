@@ -264,7 +264,7 @@ function StatRow({ label, guestValue, communityValue, unit, format }) {
 // ── Main component ─────────────────────────────────────────
 
 export default function CommunityComparison({ bottles, savedResponses, leaderboard, guestId }) {
-  const [expandedBottle, setExpandedBottle] = useState(null);
+  const [collapsedBottles, setCollapsedBottles] = useState(new Set()); // all expanded by default
 
   const revealedBottles = (bottles || []).filter(b => b.revealed && b.product);
   if (!revealedBottles.length) return null;
@@ -289,7 +289,7 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
         const response = savedResponses[bottle.letter];
         const community = bottle.product?.community || {};
         const details = bottle.product?.details || {};
-        const isExpanded = expandedBottle === bottle.letter;
+        const isExpanded = !collapsedBottles.has(bottle.letter);
         const score = perBottleScores[bottle.letter];
         const productTitle = bottle.product?.title?.replace(/ Review.*$/i, '') || 'Bottle ' + bottle.letter;
 
@@ -322,7 +322,12 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
             {/* Collapsed header */}
             <button
               type="button"
-              onClick={() => setExpandedBottle(isExpanded ? null : bottle.letter)}
+              onClick={() => setCollapsedBottles(prev => {
+                const next = new Set(prev);
+                if (next.has(bottle.letter)) next.delete(bottle.letter);
+                else next.add(bottle.letter);
+                return next;
+              })}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                 background: isExpanded ? 'rgba(232, 134, 12, 0.04)' : 'transparent',
