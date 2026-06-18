@@ -754,20 +754,21 @@ export default function AdminEventLive({ eventId }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {(event.bottles || []).map((bottle, i) => {
                     const isCurrent = i === event.currentBottleIndex;
-                    const isDone = i < event.currentBottleIndex;
+                    // A bottle is "done" if admin moved past it OR all guests responded to it
+                    const isDone = i < event.currentBottleIndex || !!allRespondedMap[bottle.letter];
                     return (
                       <div
                         key={bottle.letter}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
                           padding: '8px 10px', borderRadius: 8,
-                          background: isCurrent ? 'var(--rc-orange-light)' : isDone ? '#f0f9f0' : 'transparent',
-                          border: isCurrent ? '2px solid var(--rc-orange)' : '1px solid transparent',
+                          background: isDone ? '#f0f9f0' : isCurrent ? 'var(--rc-orange-light)' : 'transparent',
+                          border: isCurrent && !isDone ? '2px solid var(--rc-orange)' : '1px solid transparent',
                         }}
                       >
                         <span className="bottle-letter" style={{
                           width: 28, height: 28, fontSize: 13,
-                          background: isCurrent ? 'var(--rc-orange)' : isDone ? 'var(--rc-green)' : 'var(--rc-gray-300)',
+                          background: isDone ? 'var(--rc-green)' : isCurrent ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
                           color: isDone ? '#fff' : 'var(--rc-black)',
                         }}>
                           {isDone ? '✓' : bottle.letter}
