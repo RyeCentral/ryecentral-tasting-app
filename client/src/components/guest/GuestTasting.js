@@ -641,7 +641,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      Community Rating
+                      Community Rating (out of 5)
                     </label>
                     <input
                       className="form-input"
@@ -651,7 +651,11 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                       step="0.1"
                       placeholder="Guess e.g. 4.2"
                       value={rating}
-                      onChange={(e) => setRating(parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val <= 5) setRating(val);
+                        else if (e.target.value === '') setRating('');
+                      }}
                     />
                   </div>
                 </div>
