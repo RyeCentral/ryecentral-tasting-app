@@ -119,7 +119,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         setEvent((prev) => prev ? {
           ...prev,
           status: 'complete',
-          bottles: (prev.bottles || []).map((b) => ({ ...b, revealed: true })),
+          // Use server-provided bottles (includes full product data for reveal)
+          // instead of just marking existing (product-less) bottles as revealed
+          bottles: msg.bottles || (prev.bottles || []).map((b) => ({ ...b, revealed: true })),
         } : prev);
       }),
     ];
