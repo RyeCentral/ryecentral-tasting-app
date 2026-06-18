@@ -124,8 +124,8 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
         <span style={{ fontSize: 28 }}>📝</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>Post Your Reviews to RyeCentral</div>
-          <div style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
-            Share your blind tasting notes on each bottle's product page
+          <div style={{ fontSize: 13, color: 'var(--rc-gray-500)', lineHeight: 1.4 }}>
+            See how your blind tasting answers compared to the community — comparison cards unlock below after posting!
           </div>
           <div style={{
             display: 'inline-block', marginTop: 6, padding: '3px 10px',
