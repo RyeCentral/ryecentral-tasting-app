@@ -209,7 +209,7 @@ export default function AdminSetup() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {evt.status === 'setup' && (!evt.guestCount || evt.guestCount === 0) && (
+                        {(evt.status === 'complete' || (evt.status === 'setup' && (!evt.guestCount || evt.guestCount === 0))) && (
                           <button
                             className="btn btn-secondary btn-sm"
                             style={{ color: '#e53e3e', borderColor: '#e53e3e', whiteSpace: 'nowrap' }}
@@ -230,7 +230,7 @@ export default function AdminSetup() {
                           style={{ whiteSpace: 'nowrap' }}
                           onClick={() => resumeEvent(evt)}
                         >
-                          {evt.status === 'setup' ? 'Continue Setup' : 'Rejoin'}
+                          {evt.status === 'setup' ? 'Continue Setup' : evt.status === 'complete' ? 'View Results' : 'Rejoin'}
                         </button>
                       </div>
                     </div>

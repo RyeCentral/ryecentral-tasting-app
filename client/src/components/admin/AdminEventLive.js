@@ -709,13 +709,20 @@ export default function AdminEventLive({ eventId }) {
                     )}
                   </div>
 
-                  <div style={{ marginTop: 16, textAlign: 'center' }}>
+                  <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate('/admin')}
+                      style={{ minWidth: 240 }}
+                    >
+                      Save &amp; Return to Dashboard
+                    </button>
                     <button
                       className="btn btn-secondary"
                       onClick={endEvent}
-                      style={{ color: 'var(--rc-red)' }}
+                      style={{ color: 'var(--rc-red)', fontSize: 13 }}
                     >
-                      End Event &amp; Archive
+                      Delete Event
                     </button>
                   </div>
                 </>
