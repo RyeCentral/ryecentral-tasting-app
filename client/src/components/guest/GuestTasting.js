@@ -24,15 +24,30 @@ const FLAVOR_LABELS = {
 };
 
 export default function GuestTasting({ eventId, guestId, guestName }) {
+  // Persistence key for sessionStorage (survives pull-to-refresh on mobile)
+  const storageKey = `tasting_${eventId}_${guestId}`;
+
+  // Load persisted state from sessionStorage (survives page refresh)
+  const loadPersisted = (field, fallback) => {
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed[field] !== undefined) return parsed[field];
+      }
+    } catch {}
+    return fallback;
+  };
+
   const [event, setEvent] = useState(null);
   const [connected, setConnected] = useState(false);
   const [currentBottle, setCurrentBottle] = useState(null);
   const [leaderboard, setLeaderboard] = useState(null);
   const [prizes, setPrizes] = useState([]);
-  const [submitted, setSubmitted] = useState({}); // { letter: true }
+  const [submitted, setSubmitted] = useState(() => loadPersisted('submitted', {}));
   const [celebrate, setCelebrate] = useState(false);
-  const [favoriteBottle, setFavoriteBottle] = useState('');
-  const [favoriteSubmitted, setFavoriteSubmitted] = useState(false);
+  const [favoriteBottle, setFavoriteBottle] = useState(() => loadPersisted('favoriteBottle', ''));
+  const [favoriteSubmitted, setFavoriteSubmitted] = useState(() => loadPersisted('favoriteSubmitted', false));
   const [allReviewsPosted, setAllReviewsPosted] = useState(false);
     const favoriteRef = useRef(null);
 
@@ -47,9 +62,40 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
   // Store all bottle data for go-back editing
   const [allBottleData, setAllBottleData] = useState({}); // { letter: bottleData }
-  const [savedResponses, setSavedResponses] = useState({}); // { letter: { nose, palate, flavor, price, guess, rating, notes } }
+  const [savedResponses, setSavedResponses] = useState(() => loadPersisted('savedResponses', {}));
   const [viewingPrevBottle, setViewingPrevBottle] = useState(null); // letter of previous bottle being edited
   const [showResetTips, setShowResetTips] = useState(false); // palate reset tips between bottles
+
+  // Persist critical state to sessionStorage on every change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        savedResponses,
+        submitted,
+        favoriteBottle,
+        favoriteSubmitted,
+      }));
+    } catch {}
+  }, [savedResponses, submitted, favoriteBottle, favoriteSubmitted, storageKey]);
+
+  // Block iOS Safari pull-to-refresh (overscroll-behavior-y doesn't work on iOS)
+  useEffect(() => {
+    let lastY = 0;
+    const handleTouchStart = (e) => { lastY = e.touches[0].clientY; };
+    const handleTouchMove = (e) => {
+      const y = e.touches[0].clientY;
+      // If scrolled to top and pulling down, prevent pull-to-refresh
+      if (window.scrollY === 0 && y > lastY) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
 
   // Connect WebSocket
   useEffect(() => {
