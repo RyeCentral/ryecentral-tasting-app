@@ -302,7 +302,35 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
           <div className="container-narrow" style={{ margin: '0 auto' }}>
             
 
-            {/* Your Favorite Bottle Reveal */}
+            {/* ── Top: Post CTA (before reviews posted) ── */}
+            {!allReviewsPosted && (
+              <ReviewPoster
+                eventId={eventId}
+                guestId={guestId}
+                bottles={event.bottles}
+                onAllPosted={() => setAllReviewsPosted(true)}
+              />
+            )}
+
+            {/* ── Community Comparison (after posting reviews) ── */}
+            {allReviewsPosted && (
+              <CommunityComparison
+                bottles={event.bottles}
+                savedResponses={savedResponses}
+                leaderboard={leaderboard}
+                guestId={guestId}
+              />
+            )}
+
+            {/* ── Final Standings ── */}
+            <Leaderboard
+              leaderboard={leaderboard}
+              prizes={prizes}
+              highlightGuestId={guestId}
+              startDelay={3000}
+            />
+
+            {/* ── Your Favorite Bottle Reveal ── */}
             {favoriteBottle && event.bottles && (() => {
               const favBottle = event.bottles.find((b) => b.letter === favoriteBottle);
               const productTitle = favBottle?.product?.title?.replace(/ Review.*$/i, '') || null;
@@ -336,28 +364,15 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               );
             })()}
 
-            <ReviewPoster
-              eventId={eventId}
-              guestId={guestId}
-              bottles={event.bottles}
-              onAllPosted={() => setAllReviewsPosted(true)}
-            />
-
+            {/* ── Posted Reviews (bottom, after posting) ── */}
             {allReviewsPosted && (
-              <CommunityComparison
-                bottles={event.bottles}
-                savedResponses={savedResponses}
-                leaderboard={leaderboard}
+              <ReviewPoster
+                eventId={eventId}
                 guestId={guestId}
+                bottles={event.bottles}
+                onAllPosted={() => setAllReviewsPosted(true)}
               />
             )}
-
-            <Leaderboard
-              leaderboard={leaderboard}
-              prizes={prizes}
-              highlightGuestId={guestId}
-              startDelay={3000}
-            />
           </div>
         </div>
       </>
