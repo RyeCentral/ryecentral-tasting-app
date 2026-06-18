@@ -85,7 +85,8 @@ router.post('/verify-code', async (req, res) => {
 
     res.json({ token, customer });
 
-    // Fire-and-forget: create Shopify customer (don't block login response)
+    // Fire-and-forget: create Shopify customer only for genuinely new users.
+    // Uses Admin API (if configured) to avoid triggering activation emails.
     findOrCreateShopifyCustomer(email).catch(err =>
       console.error('Shopify customer creation error:', err.message)
     );
@@ -216,10 +217,9 @@ router.post('/sso-login', async (req, res) => {
     console.log('SSO login granted for:', cleanEmail);
     const token = issueAppToken(cleanEmail);
 
-    // Fire-and-forget: ensure customer record is synced
-    findOrCreateShopifyCustomer(cleanEmail).catch(err =>
-      console.error('SSO findOrCreate error:', err.message)
-    );
+    // SSO users are already Shopify customers (they logged into ryecentral.com).
+    // Do NOT call findOrCreateShopifyCustomer here \u2014 it triggers duplicate
+    // "Activate your account" emails via the Storefront API customerCreate mutation.
 
     return res.json({ token, email: cleanEmail });
   } catch (err) {

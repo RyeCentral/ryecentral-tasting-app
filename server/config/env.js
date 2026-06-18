@@ -36,4 +36,9 @@ module.exports = {
   // SSO shared secret — used to verify HMAC-signed links from ryecentral.com
   // Must match the key used in the Shopify Liquid template
   SSO_SECRET: process.env.SSO_SECRET || '',
+
+  // Shopify Admin API token — used to create customers WITHOUT triggering
+  // activation emails (send_email_invite: false). If not set, customer
+  // creation is skipped entirely to avoid unwanted activation emails.
+  SHOPIFY_ADMIN_API_TOKEN: process.env.SHOPIFY_ADMIN_API_TOKEN || '',
 };
