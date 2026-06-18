@@ -111,37 +111,26 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
   if (!revealedBottles.length) return null;
 
   return (
-    <div className="card" style={{ marginTop: 24 }}>
-      {/* Collapsed header */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
-        }}
-      >
-        <span style={{ fontSize: 28 }}>📝</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Post Your Reviews to RyeCentral</div>
-          <div style={{ fontSize: 13, color: 'var(--rc-gray-500)', lineHeight: 1.4 }}>
-            See how your blind tasting answers compared to the community — comparison cards unlock below after posting!
-          </div>
-          <div style={{
-            display: 'inline-block', marginTop: 6, padding: '3px 10px',
-            background: 'var(--rc-orange)', color: '#fff', borderRadius: 12,
-            fontSize: 12, fontWeight: 700,
-          }}>
-            Your reviews help the rye community!
-          </div>
-        </div>
-        <span style={{ fontSize: 20, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-          ▼
-        </span>
-      </button>
+    <div style={{ marginTop: 20 }}>
+      {/* Single CTA button when not yet expanded / not yet posted */}
+      {!expanded && !allPosted && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          style={{
+            display: 'block', width: '100%', padding: '16px 20px',
+            background: 'var(--rc-orange)', color: '#fff', border: 'none',
+            borderRadius: 14, cursor: 'pointer', textAlign: 'center',
+            fontSize: 16, fontWeight: 800, lineHeight: 1.4,
+            boxShadow: '0 4px 14px rgba(232,134,12,0.35)',
+          }}
+        >
+          Post Your Reviews to RyeCentral to Unlock Your Comparison Cards Below
+        </button>
+      )}
 
-      {expanded && (
-        <div style={{ marginTop: 20 }}>
+      {(expanded || allPosted) && (
+        <div className="card" style={{ marginTop: expanded && !allPosted ? 16 : 0 }}>
           {/* Big CTA section */}
           {!allPosted && (
             <div style={{
