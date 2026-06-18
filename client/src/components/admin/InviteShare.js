@@ -39,29 +39,30 @@ export default function InviteShare({ event, onBack }) {
 
   return (
     <div className="container-narrow" style={{ margin: '0 auto' }}>
-      <div className="card">
-        <div className="invite-code-display">
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
-          <h1 className="page-title" style={{ marginBottom: 8 }}>You're All Set!</h1>
-          <p className="page-subtitle">
+      <div className="card" style={{ padding: '16px 16px 12px' }}>
+        <div className="invite-code-display" style={{ padding: '0' }}>
+          <h1 className="page-title" style={{ marginBottom: 4, fontSize: 20 }}>You're All Set! 🎉</h1>
+          <p className="page-subtitle" style={{ marginBottom: 12, fontSize: 13 }}>
             Share this code or QR with your guests so they can join.
           </p>
 
-          <div className="invite-code">{event.inviteCode}</div>
+          <div className="invite-code" style={{ fontSize: 28, letterSpacing: 6, padding: '8px 16px', marginBottom: 8 }}>
+            {event.inviteCode}
+          </div>
 
-          <div className="invite-qr">
+          <div className="invite-qr" style={{ margin: '8px 0' }}>
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR code to join tasting" style={{ width: 300, height: 300 }} />
+              <img src={qrDataUrl} alt="QR code to join tasting" style={{ width: 160, height: 160 }} />
             ) : (
-              <p style={{ color: '#888' }}>Loading QR code...</p>
+              <p style={{ color: '#888', fontSize: 13 }}>Loading QR code...</p>
             )}
           </div>
 
-          <div className="invite-link">
+          <div className="invite-link" style={{ fontSize: 12, marginBottom: 12 }}>
             <code>{joinUrl}</code>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             {onBack && (
               <button className="btn btn-secondary" onClick={onBack}>
                 Back
@@ -77,33 +78,19 @@ export default function InviteShare({ event, onBack }) {
         </div>
       </div>
 
-      {/* Event summary */}
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3 style={{ marginBottom: 12 }}>Event Summary</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 14 }}>
-          <div>
-            <span style={{ color: '#888' }}>Bottles:</span>{' '}
-            <strong>{event.bottleCount}</strong>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Prizes:</span>{' '}
-            <strong>{event.prizes?.length || 0}</strong>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Guests joined:</span>{' '}
-            <strong>{event.guestCount || 0}</strong>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Status:</span>{' '}
-            <strong style={{ textTransform: 'capitalize' }}>{event.status}</strong>
-          </div>
+      {/* Event summary — compact */}
+      <div className="card" style={{ marginTop: 10, padding: '12px 16px' }}>
+        <div style={{ display: 'flex', gap: 16, fontSize: 13, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span><span style={{ color: '#888' }}>Bottles:</span> <strong>{event.bottleCount}</strong></span>
+          <span><span style={{ color: '#888' }}>Prizes:</span> <strong>{event.prizes?.length || 0}</strong></span>
+          <span><span style={{ color: '#888' }}>Guests:</span> <strong>{event.guestCount || 0}</strong></span>
         </div>
         {event.prizes?.length > 0 && (
-          <div style={{ marginTop: 12, borderTop: '1px solid #eee', paddingTop: 12 }}>
+          <div style={{ marginTop: 8, borderTop: '1px solid #eee', paddingTop: 8, textAlign: 'center' }}>
             {event.prizes.map((p) => (
-              <div key={p.place} style={{ fontSize: 14, marginBottom: 4 }}>
+              <span key={p.place} style={{ fontSize: 13, marginRight: 12 }}>
                 {['🥇', '🥈', '🥉'][p.place - 1]} {p.description}
-              </div>
+              </span>
             ))}
           </div>
         )}
