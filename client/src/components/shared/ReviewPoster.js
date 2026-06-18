@@ -179,183 +179,206 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
             </div>
           )}
 
-          {/* All posted success message */}
+          {/* All posted — compact link cards */}
           {allPosted && (
-            <div style={{
-              textAlign: 'center', padding: '24px 16px', marginBottom: 20,
-              background: 'linear-gradient(135deg, #0d4f2b 0%, #1a6b3c 100%)',
-              borderRadius: 16, border: '2px solid var(--rc-green)',
-            }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
-              <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>
-                All Reviews Posted — Thank You!
-              </h3>
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, margin: '0 0 4px', lineHeight: 1.5 }}>
-                Your {postedCount} review{postedCount !== 1 ? 's are' : ' is'} now helping the rye community!
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>
-                It can take up to 5 minutes for your reviews to appear on the live product pages below.
-              </p>
-            </div>
-          )}
-
-          {/* Review preview cards */}
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-500)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-            {allPosted ? 'Your Posted Reviews' : 'Review Preview — tap Edit to change any before posting'}
-          </div>
-
-          {revealedBottles.map((bottle) => {
-            const preview = previews[bottle.letter];
-            const edits = editing[bottle.letter] || {};
-            const isSubmitted = submitted[bottle.letter];
-            const isLoading = loading[bottle.letter];
-            const error = errors[bottle.letter];
-            const isEditing = editingLetter === bottle.letter;
-
-            return (
-              <div
-                key={bottle.letter}
-                style={{
-                  marginBottom: 12, padding: 14, borderRadius: 12,
-                  border: isSubmitted ? '2px solid var(--rc-green)' : '1px solid var(--rc-gray-300)',
-                  background: isSubmitted ? '#f0f9f0' : 'var(--rc-white)',
-                }}
-              >
-                {/* Bottle header row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span className="bottle-letter" style={{ width: 30, height: 30, fontSize: 13, flexShrink: 0 }}>
+            <>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-500)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Your Posted Reviews
+              </div>
+              {revealedBottles.map((bottle) => (
+                <a
+                  key={bottle.letter}
+                  href={'https://www.ryecentral.com/products/' + (bottle.product?.handle || '')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    marginBottom: 8, padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid var(--rc-gray-200)', background: '#f9fafb',
+                    textDecoration: 'none', color: 'inherit',
+                  }}
+                >
+                  <span className="bottle-letter" style={{ width: 28, height: 28, fontSize: 12, flexShrink: 0 }}>
                     {bottle.letter}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {preview?.productTitle || bottle.product?.title || 'Bottle ' + bottle.letter}
+                      {bottle.product?.title?.replace(/ Review.*$/i, '') || 'Bottle ' + bottle.letter}
                     </div>
-                    {preview && !isSubmitted && (
-                      <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 2 }}>
-                        {'★'.repeat(Math.min(5, Math.max(0, preview.rating || 3)))}{'☆'.repeat(Math.max(0, 5 - (preview.rating || 3)))}
-                        {' · '}{(edits.title ?? preview.title)?.substring(0, 40)}{(edits.title ?? preview.title)?.length > 40 ? '…' : ''}
+                    <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 1 }}>
+                      See your review on RyeCentral →
+                    </div>
+                  </div>
+                  <span style={{ color: 'var(--rc-green)', fontSize: 14, flexShrink: 0 }}>✓</span>
+                </a>
+              ))}
+              <p style={{ fontSize: 11, color: 'var(--rc-gray-400)', textAlign: 'center', marginTop: 8, marginBottom: 0 }}>
+                It can take up to 10 minutes for reviews to appear on the live pages.
+              </p>
+            </>
+          )}
+
+          {/* Pre-posting: review preview cards with edit */}
+          {!allPosted && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-500)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Review Preview — tap Edit to change any before posting
+              </div>
+
+              {revealedBottles.map((bottle) => {
+                const preview = previews[bottle.letter];
+                const edits = editing[bottle.letter] || {};
+                const isSubmitted = submitted[bottle.letter];
+                const isLoading = loading[bottle.letter];
+                const error = errors[bottle.letter];
+                const isEditing = editingLetter === bottle.letter;
+
+                return (
+                  <div
+                    key={bottle.letter}
+                    style={{
+                      marginBottom: 12, padding: 14, borderRadius: 12,
+                      border: isSubmitted ? '2px solid var(--rc-green)' : '1px solid var(--rc-gray-300)',
+                      background: isSubmitted ? '#f0f9f0' : 'var(--rc-white)',
+                    }}
+                  >
+                    {/* Bottle header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="bottle-letter" style={{ width: 30, height: 30, fontSize: 13, flexShrink: 0 }}>
+                        {bottle.letter}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {preview?.productTitle || bottle.product?.title || 'Bottle ' + bottle.letter}
+                        </div>
+                        {preview && !isSubmitted && (
+                          <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 2 }}>
+                            {'★'.repeat(Math.min(5, Math.max(0, preview.rating || 3)))}{'☆'.repeat(Math.max(0, 5 - (preview.rating || 3)))}
+                            {' · '}{(edits.title ?? preview.title)?.substring(0, 40)}{(edits.title ?? preview.title)?.length > 40 ? '…' : ''}
+                          </div>
+                        )}
+                      </div>
+                      {isSubmitted ? (
+                        <span style={{ color: 'var(--rc-green)', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>✓ Posted</span>
+                      ) : isLoading ? (
+                        <div className="spinner" style={{ width: 18, height: 18 }} />
+                      ) : preview ? (
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => setEditingLetter(isEditing ? null : bottle.letter)}
+                          style={{
+                            fontSize: 12, padding: '4px 12px', borderRadius: 8,
+                            background: isEditing ? 'var(--rc-gray-200)' : 'transparent',
+                            border: '1px solid var(--rc-gray-300)', color: 'var(--rc-gray-600)',
+                            cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isEditing ? 'Done' : 'Edit ✏️'}
+                        </button>
+                      ) : previews[bottle.letter] === null ? (
+                        <span style={{ fontSize: 11, color: 'var(--rc-gray-400)' }}>Unavailable</span>
+                      ) : (
+                        <div className="spinner" style={{ width: 16, height: 16 }} />
+                      )}
+                    </div>
+
+                    {/* Expanded edit panel */}
+                    {isEditing && preview && !isSubmitted && (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--rc-gray-200)' }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
+                            Review Title
+                          </label>
+                          <input
+                            className="form-input"
+                            value={edits.title ?? preview.title}
+                            onChange={(e) => handleEdit(bottle.letter, 'title', e.target.value)}
+                            style={{ fontSize: 14, fontWeight: 700, padding: '8px 12px' }}
+                          />
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
+                            Review Body
+                          </label>
+                          <textarea
+                            className="form-input"
+                            rows={8}
+                            value={edits.body ?? preview.body}
+                            onChange={(e) => handleEdit(bottle.letter, 'body', e.target.value)}
+                            style={{ fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                          />
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
+                            Stars
+                          </label>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleEdit(bottle.letter, 'rating', star)}
+                                style={{
+                                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, padding: 0,
+                                  color: star <= (edits.rating ?? preview.rating ?? 3) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
+                                }}
+                              >
+                                ★
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error for individual bottle */}
+                    {error && (
+                      <div style={{ marginTop: 8, color: 'var(--rc-red)', fontSize: 12 }}>
+                        ⚠ {error}{' '}
+                        <button
+                          onClick={() => {
+                            setErrors((prev) => ({ ...prev, [bottle.letter]: null }));
+                            setLoading((prev) => ({ ...prev, [bottle.letter]: true }));
+                            const ed = editing[bottle.letter] || {};
+                            submitReview(eventId, {
+                              guestId, bottleLetter: bottle.letter, guestEmail: email,
+                              editedTitle: ed.title || undefined, editedBody: ed.body || undefined,
+                            })
+                              .then(() => setSubmitted((prev) => ({ ...prev, [bottle.letter]: true })))
+                              .catch((err) => setErrors((prev) => ({ ...prev, [bottle.letter]: err.message })))
+                              .finally(() => setLoading((prev) => ({ ...prev, [bottle.letter]: false })));
+                          }}
+                          style={{
+                            background: 'none', border: 'none', color: 'var(--rc-orange)',
+                            fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 12,
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Product page link after individual submission */}
+                    {isSubmitted && (
+                      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--rc-gray-100)', borderRadius: 8 }}>
+                        <a
+                          href={'https://www.ryecentral.com/products/' + (bottle.product?.handle || '')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563eb', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+                        >
+                          🔍 View on RyeCentral →
+                        </a>
+                        <span style={{ fontSize: 11, color: 'var(--rc-gray-500)', marginLeft: 8 }}>
+                          Compare your notes with the community!
+                        </span>
                       </div>
                     )}
                   </div>
-                  {isSubmitted ? (
-                    <span style={{ color: 'var(--rc-green)', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>✓ Posted</span>
-                  ) : isLoading ? (
-                    <div className="spinner" style={{ width: 18, height: 18 }} />
-                  ) : preview ? (
-                    <button
-                      className="btn btn-sm"
-                      onClick={() => setEditingLetter(isEditing ? null : bottle.letter)}
-                      style={{
-                        fontSize: 12, padding: '4px 12px', borderRadius: 8,
-                        background: isEditing ? 'var(--rc-gray-200)' : 'transparent',
-                        border: '1px solid var(--rc-gray-300)', color: 'var(--rc-gray-600)',
-                        cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {isEditing ? 'Done' : 'Edit ✏️'}
-                    </button>
-                  ) : previews[bottle.letter] === null ? (
-                    <span style={{ fontSize: 11, color: 'var(--rc-gray-400)' }}>Unavailable</span>
-                  ) : (
-                    <div className="spinner" style={{ width: 16, height: 16 }} />
-                  )}
-                </div>
-
-                {/* Expanded edit panel */}
-                {isEditing && preview && !isSubmitted && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--rc-gray-200)' }}>
-                    <div style={{ marginBottom: 8 }}>
-                      <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
-                        Review Title
-                      </label>
-                      <input
-                        className="form-input"
-                        value={edits.title ?? preview.title}
-                        onChange={(e) => handleEdit(bottle.letter, 'title', e.target.value)}
-                        style={{ fontSize: 14, fontWeight: 700, padding: '8px 12px' }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 8 }}>
-                      <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
-                        Review Body
-                      </label>
-                      <textarea
-                        className="form-input"
-                        rows={8}
-                        value={edits.body ?? preview.body}
-                        onChange={(e) => handleEdit(bottle.letter, 'body', e.target.value)}
-                        style={{ fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 8 }}>
-                      <label style={{ fontWeight: 600, fontSize: 12, color: 'var(--rc-gray-500)', marginBottom: 4, display: 'block' }}>
-                        Stars
-                      </label>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => handleEdit(bottle.letter, 'rating', star)}
-                            style={{
-                              background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, padding: 0,
-                              color: star <= (edits.rating ?? preview.rating ?? 3) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
-                            }}
-                          >
-                            ★
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Error for individual bottle */}
-                {error && (
-                  <div style={{ marginTop: 8, color: 'var(--rc-red)', fontSize: 12 }}>
-                    ⚠ {error}{' '}
-                    <button
-                      onClick={() => {
-                        setErrors((prev) => ({ ...prev, [bottle.letter]: null }));
-                        setLoading((prev) => ({ ...prev, [bottle.letter]: true }));
-                        const ed = editing[bottle.letter] || {};
-                        submitReview(eventId, {
-                          guestId, bottleLetter: bottle.letter, guestEmail: email,
-                          editedTitle: ed.title || undefined, editedBody: ed.body || undefined,
-                        })
-                          .then(() => setSubmitted((prev) => ({ ...prev, [bottle.letter]: true })))
-                          .catch((err) => setErrors((prev) => ({ ...prev, [bottle.letter]: err.message })))
-                          .finally(() => setLoading((prev) => ({ ...prev, [bottle.letter]: false })));
-                      }}
-                      style={{
-                        background: 'none', border: 'none', color: 'var(--rc-orange)',
-                        fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 12,
-                      }}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {/* Product page link after submission */}
-                {isSubmitted && (
-                  <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--rc-gray-100)', borderRadius: 8 }}>
-                    <a
-                      href={'https://www.ryecentral.com/products/' + (bottle.product?.handle || '')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563eb', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
-                    >
-                      🔍 View on RyeCentral →
-                    </a>
-                    <span style={{ fontSize: 11, color: 'var(--rc-gray-500)', marginLeft: 8 }}>
-                      Compare your notes with the community!
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </>
+          )}
         </div>
       )}
     </div>
