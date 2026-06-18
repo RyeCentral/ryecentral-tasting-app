@@ -178,6 +178,23 @@ class TastingEvent {
     return result;
   }
 
+  /**
+   * Build a map of { bottleLetter: { guestId: guestName } } for all submitted responses.
+   * Used by sync:state so the admin sees green pills on reconnect.
+   */
+  getRespondersMap() {
+    const map = {};
+    for (const [guestId, bottles] of this.responses) {
+      const guest = this.guests.get(guestId);
+      const guestName = guest?.name || guestId;
+      for (const letter of Object.keys(bottles)) {
+        if (!map[letter]) map[letter] = {};
+        map[letter][guestId] = guestName;
+      }
+    }
+    return map;
+  }
+
   hasAllGuestsResponded(bottleLetter) {
     for (const [guestId, guest] of this.guests) {
       if (guest.connected && !this.responses.get(guestId)?.[bottleLetter]) {

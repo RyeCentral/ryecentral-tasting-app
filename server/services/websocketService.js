@@ -64,6 +64,7 @@ function setupWebSocket(server) {
       const adminPayload = {
         type: 'sync:state',
         event: event.toJSON('admin'),
+        respondedGuests: event.getRespondersMap(),
       };
       if (event.status === 'complete') {
         adminPayload.leaderboard = event.getLeaderboard();

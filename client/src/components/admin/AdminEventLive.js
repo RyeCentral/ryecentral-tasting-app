@@ -105,6 +105,23 @@ export default function AdminEventLive({ eventId }) {
 
       wsService.on('sync:state', (msg) => {
         setEvent(msg.event);
+        // Hydrate guest response tracking from server state (survives admin refresh)
+        if (msg.respondedGuests) {
+          setGuestResponses(msg.respondedGuests);
+          // Also rebuild the allRespondedMap from the response data
+          const newAllResponded = {};
+          if (msg.event?.guests) {
+            const bottles = msg.event.bottles || [];
+            bottles.forEach((b) => {
+              const responders = msg.respondedGuests[b.letter] || {};
+              const allGuests = msg.event.guests || [];
+              const connectedGuests = allGuests.filter((g) => g.connected !== false);
+              newAllResponded[b.letter] = connectedGuests.length > 0 &&
+                connectedGuests.every((g) => !!responders[g.id]);
+            });
+          }
+          setAllRespondedMap(newAllResponded);
+        }
         if (msg.leaderboard) {
           setLeaderboard(msg.leaderboard);
           if (msg.event?.status === 'complete') {
