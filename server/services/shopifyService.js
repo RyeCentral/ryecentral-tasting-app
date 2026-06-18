@@ -738,7 +738,10 @@ function transformToTastingProduct(shopifyProduct) {
       age: quickFacts.age,
       mashBill: quickFacts.mashBill,
       typicalPrice: quickFacts.typicalPrice,
-      retailPrice: quickFacts.retailPriceNum || restPrice || graphqlPrice || null,
+      // Variant price (Shopify admin) is the source of truth for scoring.
+      // Quick Facts HTML often has a range like "$70–$95" and the parser
+      // grabs the low end, which is wrong for scoring.
+      retailPrice: restPrice || graphqlPrice || quickFacts.retailPriceNum || null,
       distillery: shopifyProduct.vendor || null,
       whatItIs: quickFacts.whatItIs,
     },
