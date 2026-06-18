@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { previewReview, submitReview } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function ReviewPoster({ eventId, guestId, bottles }) {
+export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted }) {
   const { customer } = useAuth();
   const [previews, setPreviews] = useState({});
   const [editing, setEditing] = useState({});
@@ -99,11 +99,16 @@ export default function ReviewPoster({ eventId, guestId, bottles }) {
   };
 
   const revealedBottles = (bottles || []).filter((b) => b.revealed);
-  if (!revealedBottles.length) return null;
-
   const allPosted = revealedBottles.length > 0 && revealedBottles.every((b) => submitted[b.letter]);
   const readyCount = revealedBottles.filter((b) => previews[b.letter] && !submitted[b.letter]).length;
   const postedCount = revealedBottles.filter((b) => submitted[b.letter]).length;
+
+  // Notify parent when all reviews have been posted
+  useEffect(() => {
+    if (allPosted && onAllPosted) onAllPosted();
+  }, [allPosted, onAllPosted]);
+
+  if (!revealedBottles.length) return null;
 
   return (
     <div className="card" style={{ marginTop: 24 }}>

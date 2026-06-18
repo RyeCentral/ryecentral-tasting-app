@@ -3,6 +3,7 @@ import TopBar from '../shared/TopBar';
 import Celebration from '../shared/Celebration';
 import Leaderboard from '../shared/Leaderboard';
 import ReviewPoster from '../shared/ReviewPoster';
+import CommunityComparison from '../shared/CommunityComparison';
 import NoteIcon from '../shared/NoteIcons';
 import wsService from '../../services/websocket';
 
@@ -32,6 +33,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [celebrate, setCelebrate] = useState(false);
   const [favoriteBottle, setFavoriteBottle] = useState('');
   const [favoriteSubmitted, setFavoriteSubmitted] = useState(false);
+  const [allReviewsPosted, setAllReviewsPosted] = useState(false);
     const favoriteRef = useRef(null);
 
   // Form state for current bottle
@@ -336,7 +338,17 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               eventId={eventId}
               guestId={guestId}
               bottles={event.bottles}
+              onAllPosted={() => setAllReviewsPosted(true)}
             />
+
+            {allReviewsPosted && (
+              <CommunityComparison
+                bottles={event.bottles}
+                savedResponses={savedResponses}
+                leaderboard={leaderboard}
+                guestId={guestId}
+              />
+            )}
 
             <Leaderboard
               leaderboard={leaderboard}
