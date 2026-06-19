@@ -48,7 +48,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [celebrate, setCelebrate] = useState(false);
   const [favoriteBottle, setFavoriteBottle] = useState(() => loadPersisted('favoriteBottle', ''));
   const [favoriteSubmitted, setFavoriteSubmitted] = useState(() => loadPersisted('favoriteSubmitted', false));
-  const [allReviewsPosted, setAllReviewsPosted] = useState(false);
+  const [allReviewsPosted, setAllReviewsPosted] = useState(() => loadPersisted('allReviewsPosted', false));
     const favoriteRef = useRef(null);
 
   // Form state for current bottle
@@ -74,9 +74,10 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
         submitted,
         favoriteBottle,
         favoriteSubmitted,
+        allReviewsPosted,
       }));
     } catch {}
-  }, [savedResponses, submitted, favoriteBottle, favoriteSubmitted, storageKey]);
+  }, [savedResponses, submitted, favoriteBottle, favoriteSubmitted, allReviewsPosted, storageKey]);
 
   // Block iOS Safari pull-to-refresh (overscroll-behavior-y doesn't work on iOS)
   useEffect(() => {
@@ -410,14 +411,43 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
               );
             })()}
 
-            {/* ── Posted Reviews (bottom, after posting) ── */}
-            {allReviewsPosted && (
-              <ReviewPoster
-                eventId={eventId}
-                guestId={guestId}
-                bottles={event.bottles}
-                onAllPosted={() => setAllReviewsPosted(true)}
-              />
+            {/* ── Posted review links (bottom, after posting) ── */}
+            {allReviewsPosted && event.bottles && (
+              <div className="card" style={{ marginTop: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-500)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Your Posted Reviews
+                </div>
+                {event.bottles.filter(b => b.revealed && b.product).map((bottle) => (
+                  <a
+                    key={bottle.letter}
+                    href={'https://www.ryecentral.com/products/' + (bottle.product?.handle || '')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      marginBottom: 8, padding: '10px 14px', borderRadius: 10,
+                      border: '1px solid var(--rc-gray-200)', background: '#f9fafb',
+                      textDecoration: 'none', color: 'inherit',
+                    }}
+                  >
+                    <span className="bottle-letter" style={{ width: 28, height: 28, fontSize: 12, flexShrink: 0 }}>
+                      {bottle.letter}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {bottle.product?.title?.replace(/ Review.*$/i, '') || 'Bottle ' + bottle.letter}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 1 }}>
+                        See your review on RyeCentral →
+                      </div>
+                    </div>
+                    <span style={{ color: 'var(--rc-green)', fontSize: 14, flexShrink: 0 }}>✓</span>
+                  </a>
+                ))}
+                <p style={{ fontSize: 11, color: 'var(--rc-gray-400)', textAlign: 'center', marginTop: 8, marginBottom: 0 }}>
+                  It can take up to 10 minutes for reviews to appear on the live pages.
+                </p>
+              </div>
             )}
           </div>
         </div>
