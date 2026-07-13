@@ -180,12 +180,42 @@ export default function AdminSetup() {
           {/* Step 1: Name Your Tasting */}
           {step === 'name' && (
             <div className="container-narrow" style={{ margin: '0 auto' }}>
-              {/* Show existing events if any */}
+              {/* Create new tasting — always on top */}
+              <div className="card">
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <div style={{ fontSize: 48, marginBottom: 8 }}>🥃</div>
+                  <h1 className="page-title" style={{ marginBottom: 8 }}>
+                    Host a Tasting
+                  </h1>
+                  <p className="page-subtitle" style={{ marginBottom: 0 }}>
+                    Set up a blind rye whiskey tasting for your friends.
+                  </p>
+                </div>
+                <form onSubmit={handleCreateEvent}>
+                  <div className="form-group">
+                    <label htmlFor="eventName">Event Name</label>
+                    <input
+                      id="eventName"
+                      className="form-input"
+                      type="text"
+                      placeholder="e.g. Friday Night Rye Tasting"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading || !eventName.trim()}>
+                    {loading ? 'Creating...' : 'Create Tasting Event'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Previous events — below the create card */}
               {!checkingEvents && existingEvents.length > 0 && (
-                <div className="card" style={{ marginBottom: 16 }}>
+                <div className="card" style={{ marginTop: 16 }}>
                   <h2 style={{ fontSize: 18, marginBottom: 4 }}>Your Events</h2>
                   <p style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>
-                    Resume an existing event or create a new one below.
+                    Resume or review a previous event.
                   </p>
                   {existingEvents.map((evt) => (
                     <div
@@ -237,35 +267,6 @@ export default function AdminSetup() {
                   ))}
                 </div>
               )}
-
-              <div className="card">
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                  <div style={{ fontSize: 48, marginBottom: 8 }}>🥃</div>
-                  <h1 className="page-title" style={{ marginBottom: 8 }}>
-                    {existingEvents.length > 0 ? 'New Tasting' : 'Host a Tasting'}
-                  </h1>
-                  <p className="page-subtitle" style={{ marginBottom: 0 }}>
-                    Set up a blind rye whiskey tasting for your friends.
-                  </p>
-                </div>
-                <form onSubmit={handleCreateEvent}>
-                  <div className="form-group">
-                    <label htmlFor="eventName">Event Name</label>
-                    <input
-                      id="eventName"
-                      className="form-input"
-                      type="text"
-                      placeholder="e.g. Friday Night Rye Tasting"
-                      value={eventName}
-                      onChange={(e) => setEventName(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading || !eventName.trim()}>
-                    {loading ? 'Creating...' : 'Create Tasting Event'}
-                  </button>
-                </form>
-              </div>
             </div>
           )}
 

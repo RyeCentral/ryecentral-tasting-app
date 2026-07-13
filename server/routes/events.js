@@ -9,24 +9,40 @@ const config = require('../config/env');
 const { createEvent, getEvent, getEventByInviteCode, getAllEvents, deleteEvent } = require('../models/TastingEvent');
 const { previewReview, submitReview, submitStoreReview } = require('../services/judgeService');
 const { scheduleReminders, sendRemindersNow } = require('../services/reminderService');
+const { verifyAppToken } = require('../services/authService');
+
+/**
+ * Extract user email from JWT (optional — returns null if no valid token).
+ */
+function getUserEmail(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const payload = verifyAppToken(authHeader.substring(7));
+  return payload?.email?.toLowerCase().trim() || null;
+}
 
 /**
  * POST /api/events
- * Create a new tasting event
+ * Create a new tasting event (stores creator's email for ownership)
  */
 router.post('/', (req, res) => {
-  const { name, adminId } = req.body;
-  const event = createEvent({ name, adminId: adminId || 'admin' });
+  const { name } = req.body;
+  const userEmail = getUserEmail(req);
+  const event = createEvent({ name, adminId: userEmail || 'admin' });
   res.status(201).json({ event: event.toJSON('admin') });
 });
 
 /**
  * GET /api/events
- * List all events (admin)
+ * List events owned by the logged-in user only
  */
 router.get('/', (req, res) => {
-  const events = getAllEvents().map((e) => e.toJSON('admin'));
-  res.json({ events });
+  const userEmail = getUserEmail(req);
+  let filtered = getAllEvents();
+  if (userEmail) {
+    filtered = filtered.filter((e) => e.adminId === userEmail);
+  }
+  res.json({ events: filtered.map((e) => e.toJSON('admin')) });
 });
 
 /**
