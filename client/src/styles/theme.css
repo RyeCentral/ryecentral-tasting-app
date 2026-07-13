@@ -109,7 +109,7 @@ body {
 }
 
 .btn-secondary {
-  background: var(--rc-white);
+  background: var(--rc-pure-white);
   color: var(--rc-gray-700);
   border: 2px solid var(--rc-gray-300);
 }
@@ -342,7 +342,7 @@ body {
 }
 
 .product-card {
-  background: var(--rc-white);
+  background: var(--rc-pure-white);
   border: 2px solid var(--rc-gray-300);
   border-radius: var(--radius-lg);
   padding: var(--space-md);

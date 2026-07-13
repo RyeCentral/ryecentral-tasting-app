@@ -433,7 +433,7 @@ export default function SoloTasting({ eventId }) {
                     ? 'var(--rc-orange)'
                     : i === currentIndex && !editingBottle
                       ? 'var(--rc-orange-light)'
-                      : 'var(--rc-gray-200)',
+                      : 'var(--rc-gray-700)',
                   transition: 'background 0.3s',
                 }}
               />
@@ -548,7 +548,7 @@ export default function SoloTasting({ eventId }) {
                     style={{
                       padding: '6px 14px', borderRadius: 20, border: '2px solid',
                       borderColor: selectedNose.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
-                      background: selectedNose.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-white)',
+                      background: selectedNose.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-pure-white)',
                       cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
                     }}
                   >
@@ -584,7 +584,7 @@ export default function SoloTasting({ eventId }) {
                     style={{
                       padding: '6px 14px', borderRadius: 20, border: '2px solid',
                       borderColor: selectedPalate.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
-                      background: selectedPalate.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-white)',
+                      background: selectedPalate.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-pure-white)',
                       cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
                     }}
                   >
