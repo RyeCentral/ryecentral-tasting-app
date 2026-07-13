@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function BottleReview({ bottles, onDone, onBack }) {
+export default function BottleReview({ bottles, onDone, onBack, mode }) {
   return (
     <div className="container-narrow" style={{ margin: '0 auto' }}>
       <h1 className="page-title">Review Your Lineup</h1>
@@ -42,7 +42,7 @@ export default function BottleReview({ bottles, onDone, onBack }) {
       <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
         <button className="btn btn-secondary" onClick={onBack}>Change Bottles</button>
         <button className="btn btn-primary btn-lg" onClick={onDone}>
-          Looks Good — Set Prizes
+          {mode === 'solo' ? 'Start Tasting' : 'Looks Good — Set Prizes'}
         </button>
       </div>
     </div>

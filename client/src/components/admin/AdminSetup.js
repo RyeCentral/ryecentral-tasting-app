@@ -354,6 +354,7 @@ export default function AdminSetup() {
               bottles={event.bottles}
               onDone={handleReviewDone}
               onBack={() => goBack('bottles')}
+              mode={mode}
             />
           )}
 
