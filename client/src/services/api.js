@@ -64,10 +64,10 @@ export function refreshProducts() {
 
 // ── Events ───────────────────────────────────────────────
 
-export function createEvent(name) {
+export function createEvent(name, mode = 'group') {
   return request('/events', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, mode }),
   });
 }
 
@@ -85,6 +85,27 @@ export function deleteEvent(eventId) {
 
 export function endEvent(eventId) {
   return request(`/events/${eventId}/end`, { method: 'POST' });
+}
+
+// Solo tasting
+export function soloStart(eventId, guestName) {
+  return request(`/events/${eventId}/solo-start`, {
+    method: 'POST',
+    body: JSON.stringify({ guestName }),
+  });
+}
+
+export function soloSubmitResponse(eventId, guestId, bottleLetter, response) {
+  return request(`/events/${eventId}/responses`, {
+    method: 'POST',
+    body: JSON.stringify({ guestId, bottleLetter, response }),
+  });
+}
+
+export function soloComplete(eventId) {
+  return request(`/events/${eventId}/solo-complete`, {
+    method: 'POST',
+  });
 }
 
 // Bottles

@@ -10,6 +10,7 @@ const { createEvent, getEvent, getEventByInviteCode, getAllEvents, deleteEvent }
 const { previewReview, submitReview, submitStoreReview } = require('../services/judgeService');
 const { scheduleReminders, sendRemindersNow } = require('../services/reminderService');
 const { verifyAppToken } = require('../services/authService');
+const { ensureBottlePills } = require('../services/pillService');
 
 /**
  * Extract user email from JWT (optional — returns null if no valid token).
@@ -26,9 +27,9 @@ function getUserEmail(req) {
  * Create a new tasting event (stores creator's email for ownership)
  */
 router.post('/', (req, res) => {
-  const { name } = req.body;
+  const { name, mode } = req.body;
   const userEmail = getUserEmail(req);
-  const event = createEvent({ name, adminId: userEmail || 'admin' });
+  const event = createEvent({ name, mode: mode || 'group', adminId: userEmail || 'admin' });
   res.status(201).json({ event: event.toJSON('admin') });
 });
 
@@ -165,6 +166,69 @@ router.post('/join-by-code', (req, res) => {
 
   const guest = event.addGuest(guestName);
   res.json({ guest, event: event.toJSON('guest') });
+});
+
+/**
+ * POST /api/events/:id/solo-start
+ * Start a solo tasting — creates a guest for the user and returns all bottles with product data.
+ * Idempotent: if the event is already active with a guest, returns that guest instead of creating a new one.
+ */
+router.post('/:id/solo-start', (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+  if (event.mode !== 'solo') return res.status(400).json({ error: 'Not a solo tasting event' });
+  if (event.bottles.length === 0) return res.status(400).json({ error: 'Add at least one bottle first' });
+
+  // Idempotent: if already started with a guest, return that guest
+  let guest;
+  const existingGuests = event.getGuests();
+  if (existingGuests.length > 0 && event.status !== 'setup') {
+    guest = existingGuests[0]; // Solo mode only has one guest
+  } else {
+    const { guestName } = req.body;
+    guest = event.addGuest(guestName || 'Solo Taster');
+    event.status = 'active';
+    event.currentBottleIndex = 0;
+  }
+
+  // Solo mode: generate pills and return ALL bottles with full product data (not blind)
+  event.bottles.forEach((b) => ensureBottlePills(b));
+
+  const bottles = event.bottles.map((b) => ({
+    letter: b.letter,
+    revealed: b.revealed || false,
+    product: b.product,
+    noseNotePills: b._cachedPills.noseNotePills,
+    palateNotePills: b._cachedPills.palateNotePills,
+    noseRealCount: b._cachedPills.noseRealCount,
+    palateRealCount: b._cachedPills.palateRealCount,
+  }));
+
+  res.json({ guest, bottles, event: event.toJSON('admin') });
+});
+
+/**
+ * POST /api/events/:id/solo-complete
+ * Complete a solo tasting — reveal bottles, calculate scores, return results
+ */
+router.post('/:id/solo-complete', (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  // Reveal all bottles
+  event.bottles.forEach((b) => { b.revealed = true; });
+
+  // Calculate scores
+  const leaderboard = event.calculateScores();
+  event.status = 'complete';
+
+  const revealedBottles = event.bottles.map((b) => ({
+    letter: b.letter,
+    revealed: true,
+    product: b.product,
+  }));
+
+  res.json({ leaderboard, bottles: revealedBottles, event: event.toJSON('admin') });
 });
 
 /**

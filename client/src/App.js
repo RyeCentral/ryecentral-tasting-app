@@ -7,6 +7,7 @@ import AdminSetup from './components/admin/AdminSetup';
 import AdminEventLiveRoute from './components/admin/AdminEventLiveRoute';
 import GuestJoin from './components/guest/GuestJoin';
 import GuestTastingRoute from './components/guest/GuestTastingRoute';
+import SoloTastingRoute from './components/solo/SoloTastingRoute';
 
 /** Redirect / to /admin while preserving SSO query params */
 function RootRedirect() {
@@ -60,6 +61,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <GuestTastingRoute />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Solo tasting — requires RyeCentral account */}
+          <Route
+            path="/solo/:eventId"
+            element={
+              <ProtectedRoute>
+                <SoloTastingRoute />
               </ProtectedRoute>
             }
           />

@@ -8,12 +8,18 @@ import PrizeSetup from './PrizeSetup';
 import InviteShare from './InviteShare';
 import * as api from '../../services/api';
 
-const STEPS = [
+const GROUP_STEPS = [
   { key: 'name',    label: 'Name' },
   { key: 'bottles', label: 'Bottles' },
   { key: 'review',  label: 'Review' },
   { key: 'prizes',  label: 'Prizes' },
   { key: 'invite',  label: 'Invite' },
+];
+
+const SOLO_STEPS = [
+  { key: 'name',    label: 'Name' },
+  { key: 'bottles', label: 'Bottles' },
+  { key: 'review',  label: 'Review' },
 ];
 
 const STATUS_LABELS = {
@@ -26,6 +32,7 @@ const STATUS_LABELS = {
 export default function AdminSetup() {
   const navigate = useNavigate();
   const [step, setStep] = useState('name');
+  const [mode, setMode] = useState('group'); // 'group' | 'solo'
   const [eventName, setEventName] = useState('');
   const [event, setEvent] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -49,14 +56,22 @@ export default function AdminSetup() {
     if (evt.status === 'setup') {
       // Go back to setup flow — load event and jump to appropriate step
       setEvent(evt);
+      if (evt.mode === 'solo') setMode('solo');
       if (evt.bottles && evt.bottles.length > 0) {
-        setStep('invite'); // They already picked bottles, go to invite
+        if (evt.mode === 'solo') {
+          setStep('review'); // Solo: skip to review (no invite)
+        } else {
+          setStep('invite'); // Group: go to invite
+        }
       } else {
         setStep('bottles');
       }
       setExistingEvents([]); // Hide the list
+    } else if (evt.mode === 'solo') {
+      // Solo active/complete — go to solo tasting
+      navigate(`/solo/${evt.id}`);
     } else {
-      // Active, scoring, or complete — go to live dashboard
+      // Group active, scoring, or complete — go to live dashboard
       navigate(`/admin/event/${evt.id}`);
     }
   };
@@ -68,7 +83,7 @@ export default function AdminSetup() {
     setLoading(true);
     setError('');
     try {
-      const result = await api.createEvent(eventName.trim());
+      const result = await api.createEvent(eventName.trim(), mode);
       setEvent(result.event);
       setStep('bottles');
     } catch (err) {
@@ -114,8 +129,14 @@ export default function AdminSetup() {
     setLoading(false);
   };
 
-  // Step 3 → 4: Move to prizes
-  const handleReviewDone = () => setStep('prizes');
+  // Step 3 → 4: Move to prizes (group) or start solo tasting
+  const handleReviewDone = () => {
+    if (mode === 'solo') {
+      navigate(`/solo/${event.id}`);
+      return;
+    }
+    setStep('prizes');
+  };
 
   // Step 4 → 5: Save prizes and move to invite
   const handleSavePrizes = async (prizes) => {
@@ -131,6 +152,9 @@ export default function AdminSetup() {
     }
     setLoading(false);
   };
+
+  // Active steps depend on mode
+  const STEPS = mode === 'solo' ? SOLO_STEPS : GROUP_STEPS;
 
   // Go back a step
   const goBack = (target) => setStep(target);
@@ -163,7 +187,7 @@ export default function AdminSetup() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [step]);
+  }, [step, STEPS]);
 
   // Determine step index for indicator
   const stepIndex = STEPS.findIndex((s) => s.key === step);
@@ -180,17 +204,60 @@ export default function AdminSetup() {
           {/* Step 1: Name Your Tasting */}
           {step === 'name' && (
             <div className="container-narrow" style={{ margin: '0 auto' }}>
-              {/* Create new tasting — always on top */}
+              {/* Mode selector + name form */}
               <div className="card">
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <div style={{ fontSize: 48, marginBottom: 8 }}>🥃</div>
-                  <h1 className="page-title" style={{ marginBottom: 8 }}>
-                    Host a Tasting
+                  <h1 className="page-title" style={{ marginBottom: 4 }}>
+                    Start a Tasting
                   </h1>
                   <p className="page-subtitle" style={{ marginBottom: 0 }}>
-                    Set up a blind rye whiskey tasting for your friends.
+                    Choose your tasting style, then pick your bottles.
                   </p>
                 </div>
+
+                {/* Mode toggle */}
+                <div style={{
+                  display: 'flex', gap: 10, marginBottom: 20,
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setMode('group')}
+                    style={{
+                      flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                      border: mode === 'group' ? '2px solid var(--rc-orange)' : '2px solid var(--rc-gray-200)',
+                      background: mode === 'group' ? 'rgba(232, 134, 12, 0.06)' : 'var(--rc-white)',
+                      textAlign: 'center', transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>👥</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: mode === 'group' ? 'var(--rc-orange)' : 'var(--rc-gray-700)' }}>
+                      Host a Tasting
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 2 }}>
+                      Blind tasting with friends
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('solo')}
+                    style={{
+                      flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                      border: mode === 'solo' ? '2px solid var(--rc-orange)' : '2px solid var(--rc-gray-200)',
+                      background: mode === 'solo' ? 'rgba(232, 134, 12, 0.06)' : 'var(--rc-white)',
+                      textAlign: 'center', transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>🎯</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: mode === 'solo' ? 'var(--rc-orange)' : 'var(--rc-gray-700)' }}>
+                      Solo Tasting
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 2 }}>
+                      Train your palate solo
+                    </div>
+                  </button>
+                </div>
+
                 <form onSubmit={handleCreateEvent}>
                   <div className="form-group">
                     <label htmlFor="eventName">Event Name</label>
@@ -198,14 +265,14 @@ export default function AdminSetup() {
                       id="eventName"
                       className="form-input"
                       type="text"
-                      placeholder="e.g. Friday Night Rye Tasting"
+                      placeholder={mode === 'solo' ? 'e.g. Tuesday Palate Training' : 'e.g. Friday Night Rye Tasting'}
                       value={eventName}
                       onChange={(e) => setEventName(e.target.value)}
                       autoFocus
                     />
                   </div>
                   <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading || !eventName.trim()}>
-                    {loading ? 'Creating...' : 'Create Tasting Event'}
+                    {loading ? 'Creating...' : mode === 'solo' ? 'Start Solo Tasting' : 'Create Tasting Event'}
                   </button>
                 </form>
               </div>

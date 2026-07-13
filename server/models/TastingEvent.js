@@ -11,10 +11,11 @@ const { v4: uuidv4 } = require('uuid');
 const events = new Map();
 
 class TastingEvent {
-  constructor({ adminId, name }) {
+  constructor({ adminId, name, mode }) {
     this.id = uuidv4();
     this.adminId = adminId;
     this.name = name || 'Rye Tasting Night';
+    this.mode = mode || 'group'; // 'group' (host + guests) | 'solo' (single user)
     this.createdAt = new Date().toISOString();
     this.status = 'setup'; // setup | active | scoring | complete | ended
 
@@ -376,6 +377,7 @@ class TastingEvent {
     const base = {
       id: this.id,
       name: this.name,
+      mode: this.mode,
       status: this.status,
       inviteCode: this.inviteCode,
       currentBottleIndex: this.currentBottleIndex,
