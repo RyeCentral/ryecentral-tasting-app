@@ -746,15 +746,16 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                   </div>
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      Community Rating (out of 5)
+                      Your Rating (out of 5)
                     </label>
                     <input
                       className="form-input"
                       type="number"
+                      inputMode="decimal"
                       min="1"
                       max="5"
                       step="0.1"
-                      placeholder="Guess e.g. 4.2"
+                      placeholder="e.g. 4.2"
                       value={rating}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value);
@@ -762,6 +763,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         else if (e.target.value === '') setRating('');
                       }}
                     />
+                    <span style={{ fontSize: 11, color: 'var(--rc-gray-500)', marginTop: 2, display: 'block' }}>
+                      Use decimals — 3.8, 4.2, etc.
+                    </span>
                   </div>
                 </div>
 
