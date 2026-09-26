@@ -108,6 +108,13 @@ export function soloComplete(eventId) {
   });
 }
 
+export function soloFromProduct(handle) {
+  return request('/events/solo-from-product', {
+    method: 'POST',
+    body: JSON.stringify({ handle }),
+  });
+}
+
 // Bottles
 export function addBottle(eventId, product) {
   return request(`/events/${eventId}/bottles`, {

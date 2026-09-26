@@ -33,8 +33,12 @@ export default function LoginPage() {
     const ssoTs = params.get('sso_ts');
     const ssoSig = params.get('sso_sig');
     if (ssoEmail) {
-      // Clean the URL to remove the sso_email param
-      const cleanUrl = window.location.pathname;
+      // Clean only SSO params — preserve deep-link path & other query params
+      params.delete('sso_email');
+      params.delete('sso_ts');
+      params.delete('sso_sig');
+      const remaining = params.toString();
+      const cleanUrl = window.location.pathname + (remaining ? '?' + remaining : '');
       window.history.replaceState({}, '', cleanUrl);
       // Attempt SSO login
       ssoLogin(ssoEmail, ssoTs, ssoSig).then(success => {

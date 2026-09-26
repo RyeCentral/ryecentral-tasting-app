@@ -17,7 +17,6 @@ const GROUP_STEPS = [
 ];
 
 const SOLO_STEPS = [
-  { key: 'name',    label: 'Name' },
   { key: 'bottles', label: 'Bottles' },
   { key: 'review',  label: 'Review' },
 ];
@@ -79,11 +78,15 @@ export default function AdminSetup() {
   // Step 1: Create event
   const handleCreateEvent = async (e) => {
     e.preventDefault();
-    if (!eventName.trim()) return;
+    // Solo mode auto-generates a dated name
+    const name = mode === 'solo'
+      ? `Solo Tasting · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : eventName.trim();
+    if (!name) return;
     setLoading(true);
     setError('');
     try {
-      const result = await api.createEvent(eventName.trim(), mode);
+      const result = await api.createEvent(name, mode);
       setEvent(result.event);
       setStep('bottles');
     } catch (err) {
@@ -259,20 +262,26 @@ export default function AdminSetup() {
                 </div>
 
                 <form onSubmit={handleCreateEvent}>
-                  <div className="form-group">
-                    <label htmlFor="eventName">Event Name</label>
-                    <input
-                      id="eventName"
-                      className="form-input"
-                      type="text"
-                      placeholder={mode === 'solo' ? 'e.g. Tuesday Palate Training' : 'e.g. Friday Night Rye Tasting'}
-                      value={eventName}
-                      onChange={(e) => setEventName(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={loading || !eventName.trim()}>
-                    {loading ? 'Creating...' : mode === 'solo' ? 'Start Solo Tasting' : 'Create Tasting Event'}
+                  {mode !== 'solo' && (
+                    <div className="form-group">
+                      <label htmlFor="eventName">Event Name</label>
+                      <input
+                        id="eventName"
+                        className="form-input"
+                        type="text"
+                        placeholder="e.g. Friday Night Rye Tasting"
+                        value={eventName}
+                        onChange={(e) => setEventName(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  <button
+                    className="btn btn-primary btn-lg btn-block"
+                    type="submit"
+                    disabled={loading || (mode !== 'solo' && !eventName.trim())}
+                  >
+                    {loading ? 'Creating...' : mode === 'solo' ? 'Pick Your Bottles' : 'Create Tasting Event'}
                   </button>
                 </form>
               </div>

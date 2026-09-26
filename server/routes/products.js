@@ -4,12 +4,8 @@
 
 const express = require('express');
 const router = express.Router();
+const { getProducts, getStaleFallback } = require('../services/productCache');
 const shopify = require('../services/shopifyService');
-
-// Cache products in memory (refresh every 10 minutes)
-let productCache = null;
-let cacheTimestamp = 0;
-const CACHE_TTL = 10 * 60 * 1000;
 
 /**
  * GET /api/products
@@ -19,23 +15,15 @@ const CACHE_TTL = 10 * 60 * 1000;
 router.get('/', async (req, res) => {
   try {
     const forceFresh = req.query.fresh === 'true';
-    const now = Date.now();
-
-    if (!forceFresh && productCache && now - cacheTimestamp < CACHE_TTL) {
-      return res.json({ products: productCache, cached: true });
-    }
-
-    const products = await shopify.getAllTastingProducts();
-    productCache = products;
-    cacheTimestamp = now;
-
-    res.json({ products, cached: false });
+    const { products, cached } = await getProducts(forceFresh);
+    res.json({ products, cached });
   } catch (error) {
     console.error('Error fetching products:', error.message);
 
     // Return cache if available, even if stale
-    if (productCache) {
-      return res.json({ products: productCache, cached: true, stale: true });
+    const stale = getStaleFallback();
+    if (stale) {
+      return res.json({ products: stale, cached: true, stale: true });
     }
 
     res.status(500).json({ error: 'Failed to fetch products from RyeCentral' });
@@ -67,9 +55,7 @@ router.get('/:handle', async (req, res) => {
  */
 router.post('/refresh', async (req, res) => {
   try {
-    const products = await shopify.getAllTastingProducts();
-    productCache = products;
-    cacheTimestamp = Date.now();
+    const { products } = await getProducts(true);
     res.json({ products, refreshed: true });
   } catch (error) {
     console.error('Error refreshing products:', error.message);

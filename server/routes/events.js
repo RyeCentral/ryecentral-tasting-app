@@ -11,6 +11,7 @@ const { previewReview, submitReview, submitStoreReview } = require('../services/
 const { scheduleReminders, sendRemindersNow } = require('../services/reminderService');
 const { verifyAppToken } = require('../services/authService');
 const { ensureBottlePills } = require('../services/pillService');
+const { findProductByHandle } = require('../services/productCache');
 
 /**
  * Extract user email from JWT (optional — returns null if no valid token).
@@ -44,6 +45,52 @@ router.get('/', (req, res) => {
     filtered = filtered.filter((e) => e.adminId === userEmail);
   }
   res.json({ events: filtered.map((e) => e.toJSON('admin')) });
+});
+
+/**
+ * POST /api/events/solo-from-product
+ * Create (or reuse) a solo tasting event for a single product handle.
+ * Used by the /taste/:handle deep-link route.
+ * Requires JWT — returns { event, reused }.
+ */
+router.post('/solo-from-product', async (req, res) => {
+  const userEmail = getUserEmail(req);
+  if (!userEmail) return res.status(401).json({ error: 'Authentication required' });
+
+  const { handle } = req.body;
+  if (!handle) return res.status(400).json({ error: 'Product handle is required' });
+
+  try {
+    // Look up product in shared cache
+    const product = await findProductByHandle(handle);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    // Reuse an existing unfinished solo event for the same bottle + user
+    const existing = getAllEvents().find((e) =>
+      e.mode === 'solo' &&
+      e.adminId === userEmail &&
+      e.status !== 'ended' &&
+      e.status !== 'complete' &&
+      e.bottles.length === 1 &&
+      e.bottles[0].product?.handle === handle
+    );
+
+    if (existing) {
+      return res.json({ event: existing.toJSON('admin'), reused: true });
+    }
+
+    // Create a new solo event with auto-generated name
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const name = `Solo Tasting · ${dateStr}`;
+    const event = createEvent({ name, mode: 'solo', adminId: userEmail });
+    event.addBottle(product);
+
+    res.status(201).json({ event: event.toJSON('admin'), reused: false });
+  } catch (err) {
+    console.error('solo-from-product error:', err);
+    res.status(500).json({ error: 'Failed to create solo tasting' });
+  }
 });
 
 /**
