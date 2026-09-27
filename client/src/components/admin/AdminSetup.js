@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import StepIndicator from '../shared/StepIndicator';
 import ProductPicker from './ProductPicker';
@@ -31,7 +31,8 @@ const STATUS_LABELS = {
 export default function AdminSetup() {
   const navigate = useNavigate();
   const [step, setStep] = useState('name');
-  const [mode, setMode] = useState('group'); // 'group' | 'solo'
+  const location = useLocation();
+  const [mode, setMode] = useState(location.state?.mode === 'solo' ? 'solo' : 'group'); // 'group' | 'solo'
   const [eventName, setEventName] = useState('');
   const [event, setEvent] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);

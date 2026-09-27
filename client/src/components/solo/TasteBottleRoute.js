@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { soloFromProduct } from '../../services/api';
 
@@ -11,7 +11,6 @@ export default function TasteBottleRoute() {
   const { handle } = useParams();
   const navigate = useNavigate();
   const called = useRef(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (called.current) return;
@@ -23,24 +22,11 @@ export default function TasteBottleRoute() {
       })
       .catch((err) => {
         console.error('TasteBottleRoute error:', err);
-        setError(err.message || 'Could not start tasting for this bottle.');
+        // Bottle can't be resolved — drop the user into a solo tasting at the
+        // bottle picker rather than a dead end.
+        navigate('/admin', { replace: true, state: { mode: 'solo' } });
       });
   }, [handle, navigate]);
-
-  if (error) {
-    return (
-      <div className="page">
-        <div className="container-narrow" style={{ textAlign: 'center', paddingTop: '80px' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-          <h2 style={{ marginBottom: 12 }}>Bottle not found</h2>
-          <p style={{ color: 'var(--rc-gray-300)', marginBottom: 24 }}>{error}</p>
-          <button className="btn btn-primary" onClick={() => navigate('/admin')}>
-            Choose a bottle instead
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="page">

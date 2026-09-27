@@ -772,6 +772,26 @@ async function getAllTastingProducts() {
     }
 
     console.log(`Fetched ${allProducts.length} products via Storefront GraphQL (with metafields)`);
+
+    // The Storefront API only returns products published to its own channel,
+    // so newer reviews can be missing from it (Sep 2026: 136 of 185). Top the
+    // list up from the public collection feed so every live review is
+    // available for tasting; those extras fall back to prose extraction.
+    try {
+      const seen = new Set(allProducts.map((p) => p.handle));
+      const restProducts = await getCollectionProductsREST();
+      const extras = restProducts
+        .filter((p) => p.handle && !seen.has(p.handle))
+        .map(transformToTastingProduct)
+        .filter(Boolean);
+      if (extras.length) {
+        console.log(`Added ${extras.length} products missing from Storefront GraphQL via REST`);
+        allProducts = allProducts.concat(extras);
+      }
+    } catch (restErr) {
+      console.warn('REST top-up skipped:', restErr.message);
+    }
+
     return allProducts;
   } catch (err) {
     console.warn('Storefront GraphQL fetch failed, falling back to REST:', err.message);
