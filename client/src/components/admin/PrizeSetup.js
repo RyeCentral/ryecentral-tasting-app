@@ -42,6 +42,7 @@ export default function PrizeSetup({ onSave, onBack, loading }) {
               <button
                 key={n}
                 type="button"
+                style={{ flex: 1, minWidth: 0, padding: '10px 6px' }}
                 className={`btn ${prizeCount === n ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setPrizeCount(n)}
               >
@@ -67,9 +68,9 @@ export default function PrizeSetup({ onSave, onBack, loading }) {
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
             <button className="btn btn-secondary" type="button" onClick={onBack}>Back</button>
-            <button className="btn btn-primary btn-lg" type="submit" disabled={loading}>
+            <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ flex: '1 1 200px' }}>
               {loading ? 'Saving...' : 'Save & Generate Invite'}
             </button>
           </div>

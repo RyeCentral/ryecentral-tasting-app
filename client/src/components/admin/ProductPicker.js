@@ -63,14 +63,14 @@ export default function ProductPicker({ selectedProducts, onToggleProduct, onCon
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
+      <div className="header-row" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
+        <div style={{ flex: '1 1 260px' }}>
           <h1 className="page-title" style={{ marginBottom: 4 }}>Select Your Bottles</h1>
           <p className="page-subtitle" style={{ marginBottom: 0 }}>
             Choose up to 8 rye whiskeys for your blind tasting. ({selectedProducts.length} selected)
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="header-actions" style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={onBack}>Back</button>
           <button
             className="btn btn-primary"
@@ -98,7 +98,8 @@ export default function ProductPicker({ selectedProducts, onToggleProduct, onCon
                   onClick={() => onToggleProduct(p)}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#e74c3c', fontSize: 16, padding: '0 4px',
+                    color: '#e74c3c', fontSize: 20, lineHeight: 1,
+                    minWidth: 32, minHeight: 32, padding: 0,
                   }}
                   title="Remove"
                 >
@@ -158,6 +159,19 @@ export default function ProductPicker({ selectedProducts, onToggleProduct, onCon
         <div className="empty-state">
           <div className="emoji">🔍</div>
           <p>No whiskeys match "{search}"</p>
+        </div>
+      )}
+
+      {/* Phones: keep Continue reachable while scrolling a long bottle list */}
+      {selectedProducts.length > 0 && (
+        <div className="mobile-sticky-cta">
+          <button
+            className="btn btn-primary btn-block btn-lg"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? 'Adding...' : `Continue with ${selectedProducts.length} bottle${selectedProducts.length !== 1 ? 's' : ''}`}
+          </button>
         </div>
       )}
     </div>

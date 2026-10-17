@@ -2,8 +2,10 @@
  * API Service — talks to the Express backend at /api/*
  * In dev the CRA proxy forwards to localhost:3001.
  *
- * All authenticated requests include the JWT token from localStorage.
+ * All authenticated requests include the JWT token from safeLocal.
  */
+
+import { safeLocal } from './safeStorage';
 
 const BASE = '/api';
 const AUTH_STORAGE_KEY = 'rc_tasting_auth';
@@ -13,7 +15,7 @@ const AUTH_STORAGE_KEY = 'rc_tasting_auth';
  */
 function getAuthToken() {
   try {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    const stored = safeLocal.getItem(AUTH_STORAGE_KEY);
     if (stored) {
       const { token } = JSON.parse(stored);
       return token;
@@ -24,7 +26,45 @@ function getAuthToken() {
   return null;
 }
 
+/**
+ * fetch with a timeout. On a weak phone signal a request can hang with no
+ * error at all, which leaves a spinner on screen forever.
+ */
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  if (typeof AbortController === 'undefined') return fetch(url, options);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error('The connection timed out. Check your signal and try again.');
+    }
+    throw new Error('Could not reach the tasting server. Check your connection and try again.');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function request(path, options = {}) {
+  const { retries = 0, timeoutMs, ...fetchOptions } = options;
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestOnce(path, fetchOptions, timeoutMs);
+    } catch (err) {
+      lastErr = err;
+      // Only retry network failures / timeouts / 5xx, never 4xx answers
+      if (!err.retryable || attempt === retries) break;
+      await sleep(800 * (attempt + 1));
+    }
+  }
+  throw lastErr;
+}
+
+async function requestOnce(path, options = {}, timeoutMs) {
   const url = `${BASE}${path}`;
 
   // Build headers — include auth token if available
@@ -38,11 +78,19 @@ async function request(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...options, headers, });
+  let res;
+  try {
+    res = await fetchWithTimeout(url, { ...options, headers }, timeoutMs);
+  } catch (err) {
+    err.retryable = true;
+    throw err;
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    const msg = data?.error || res.statusText;
-    throw new Error(msg);
+    const err = new Error(data?.error || res.statusText || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.retryable = res.status >= 500;
+    throw err;
   }
   return data;
 }
@@ -51,7 +99,7 @@ async function request(path, options = {}) {
 
 export function getProducts(fresh = false) {
   const query = fresh ? '?fresh=true' : '';
-  return request(`/products${query}`);
+  return request(`/products${query}`, { retries: 2 });
 }
 
 export function getProductByHandle(handle) {
@@ -72,11 +120,11 @@ export function createEvent(name, mode = 'group') {
 }
 
 export function getEvent(eventId, role = 'admin') {
-  return request(`/events/${eventId}?role=${role}`);
+  return request(`/events/${eventId}?role=${role}`, { retries: 2 });
 }
 
 export function getEvents() {
-  return request('/events');
+  return request('/events', { retries: 2 });
 }
 
 export function deleteEvent(eventId) {
@@ -89,29 +137,38 @@ export function endEvent(eventId) {
 
 // Solo tasting
 export function soloStart(eventId, guestName) {
+  // Idempotent on the server (returns the existing guest/bottles)
   return request(`/events/${eventId}/solo-start`, {
     method: 'POST',
     body: JSON.stringify({ guestName }),
+    retries: 2,
   });
 }
 
 export function soloSubmitResponse(eventId, guestId, bottleLetter, response) {
+  // Overwrites per guest+bottle on the server, so safe to retry
   return request(`/events/${eventId}/responses`, {
     method: 'POST',
     body: JSON.stringify({ guestId, bottleLetter, response }),
+    retries: 2,
   });
 }
 
 export function soloComplete(eventId) {
   return request(`/events/${eventId}/solo-complete`, {
     method: 'POST',
+    retries: 2,
   });
 }
 
 export function soloFromProduct(handle) {
+  // Reuses an unfinished solo event for the same bottle, so safe to retry.
+  // First call can be slow while the product cache warms up.
   return request('/events/solo-from-product', {
     method: 'POST',
     body: JSON.stringify({ handle }),
+    retries: 2,
+    timeoutMs: 30000,
   });
 }
 

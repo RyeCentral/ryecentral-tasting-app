@@ -61,8 +61,8 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 16,
-                padding: '16px 20px',
+                gap: 'clamp(8px, 3vw, 16px)',
+                padding: 'clamp(12px, 3.5vw, 16px) clamp(12px, 4vw, 20px)',
                 background: i === 0
                   ? 'linear-gradient(135deg, #ffecd2 0%, #fff 100%)'
                   : isMe
@@ -83,7 +83,8 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
             >
               {/* Rank */}
               <div style={{
-                width: 48,
+                width: 'clamp(34px, 10vw, 48px)',
+                flexShrink: 0,
                 textAlign: 'center',
                 fontSize: medal ? 32 : 22,
                 fontWeight: 700,
@@ -93,7 +94,7 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
               </div>
 
               {/* Name + Prize */}
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
                 <div style={{
                   fontWeight: 700,
                   fontSize: i === 0 ? 20 : 16,
@@ -131,6 +132,7 @@ export default function Leaderboard({ leaderboard, prizes = [], highlightGuestId
               <div style={{
                 fontSize: i === 0 ? 28 : 22,
                 fontWeight: 700,
+                flexShrink: 0,
                 color: 'var(--rc-orange)',
                 fontFamily: 'var(--font-heading)',
               }}>

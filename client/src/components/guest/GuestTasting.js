@@ -6,6 +6,9 @@ import ReviewPoster from '../shared/ReviewPoster';
 import CommunityComparison from '../shared/CommunityComparison';
 import NoteIcon from '../shared/NoteIcons';
 import wsService from '../../services/websocket';
+import usePreventPullToRefresh from '../../hooks/usePreventPullToRefresh';
+import { cleanPriceInput, cleanRatingInput, ratingToNumber } from '../../utils/numberInput';
+import { safeSession } from '../../services/safeStorage';
 
 const DEFAULT_FLAVOR_PROFILE = {
   sweetness: 5, ryeSpice: 5, herbalMint: 5, fruit: 5,
@@ -23,6 +26,19 @@ const FLAVOR_LABELS = {
   finishLength: 'Finish Length',
 };
 
+/** Shape a locally saved answer into the payload the server expects */
+function toResponsePayload(r) {
+  return {
+    noseNotes: r.selectedNose || [],
+    palateNotes: r.selectedPalate || [],
+    flavorProfile: r.flavorProfile,
+    priceGuess: parseFloat(r.priceGuess) || null,
+    bottleGuess: r.bottleGuess,
+    rating: ratingToNumber(r.rating),
+    freeNotes: r.freeNotes,
+  };
+}
+
 export default function GuestTasting({ eventId, guestId, guestName }) {
   // Persistence key for sessionStorage (survives pull-to-refresh on mobile)
   const storageKey = `tasting_${eventId}_${guestId}`;
@@ -30,7 +46,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   // Load persisted state from sessionStorage (survives page refresh)
   const loadPersisted = (field, fallback) => {
     try {
-      const stored = sessionStorage.getItem(storageKey);
+      const stored = safeSession.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[field] !== undefined) return parsed[field];
@@ -66,10 +82,17 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const [viewingPrevBottle, setViewingPrevBottle] = useState(null); // letter of previous bottle being edited
   const [showResetTips, setShowResetTips] = useState(false); // palate reset tips between bottles
 
+  // Latest submitted answers, readable from the WebSocket handlers. Used to
+  // re-deliver answers after a reconnect: a phone that locked mid-tasting can
+  // hold a dead socket that still reports OPEN, so a send can vanish. The
+  // server overwrites per guest+bottle, so re-sending is harmless.
+  const resendRef = useRef({ submitted: {}, savedResponses: {} });
+  resendRef.current = { submitted, savedResponses };
+
   // Persist critical state to sessionStorage on every change
   useEffect(() => {
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify({
+      safeSession.setItem(storageKey, JSON.stringify({
         savedResponses,
         submitted,
         favoriteBottle,
@@ -79,24 +102,8 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     } catch {}
   }, [savedResponses, submitted, favoriteBottle, favoriteSubmitted, allReviewsPosted, storageKey]);
 
-  // Block iOS Safari pull-to-refresh (overscroll-behavior-y doesn't work on iOS)
-  useEffect(() => {
-    let lastY = 0;
-    const handleTouchStart = (e) => { lastY = e.touches[0].clientY; };
-    const handleTouchMove = (e) => {
-      const y = e.touches[0].clientY;
-      // If scrolled to top and pulling down, prevent pull-to-refresh
-      if (window.scrollY === 0 && y > lastY) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, []);
+  // Block iOS Safari pull-to-refresh (without cancelling slider drags)
+  usePreventPullToRefresh();
 
   // Connect WebSocket
   useEffect(() => {
@@ -108,6 +115,18 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
       wsService.on('sync:state', (msg) => {
         setEvent(msg.event);
+        if (msg.event?.status === 'active') {
+          const { submitted: done, savedResponses: saved } = resendRef.current;
+          Object.keys(done || {}).forEach((letter) => {
+            if (done[letter] && saved?.[letter]) {
+              wsService.send({
+                type: 'guest:response',
+                bottleLetter: letter,
+                response: toResponsePayload(saved[letter]),
+              });
+            }
+          });
+        }
         // Restore currentBottle from sync payload (handles reconnect/refresh)
         if (msg.currentBottle) {
           setCurrentBottle(msg.currentBottle);
@@ -219,15 +238,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     wsService.send({
       type: 'guest:response',
       bottleLetter: bottle.letter,
-      response: {
-        noseNotes: selectedNose,
-        palateNotes: selectedPalate,
-        flavorProfile,
-        priceGuess: parseFloat(priceGuess) || null,
-        bottleGuess,
-        rating,
-        freeNotes,
-      },
+      response: toResponsePayload({ selectedNose, selectedPalate, flavorProfile, priceGuess, bottleGuess, rating, freeNotes }),
     });
     setSavedResponses((prev) => ({
       ...prev,
@@ -463,6 +474,14 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   return (
     <>
       <TopBar eventName={event.name} />
+      {!connected && (
+        <div role="status" style={{
+          position: 'sticky', top: 0, zIndex: 30, padding: '8px 12px', textAlign: 'center',
+          background: '#7a4b00', color: '#fff', fontSize: 13, fontWeight: 600,
+        }}>
+          Reconnecting… your answers are saved and will send automatically.
+        </div>
+      )}
       <div className="page">
         <div className="container-narrow" style={{ margin: '0 auto' }}>
 
@@ -583,7 +602,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                 <div className="card" style={{ marginTop: 16, border: '2px solid var(--rc-orange)', background: 'var(--rc-orange-light)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <h3 style={{ fontSize: 15, color: 'var(--rc-orange)', margin: 0 }}>Reset Your Palate</h3>
-                    <button onClick={() => setShowResetTips(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--rc-gray-500)' }}>✕</button>
+                    <button onClick={() => setShowResetTips(false)} aria-label="Dismiss" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, width: 40, height: 40, margin: '-8px -8px -8px 0', color: 'var(--rc-gray-500)' }}>✕</button>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--rc-gray-700)', lineHeight: 1.6 }}>
                     <div style={{ marginBottom: 6 }}><strong>Sip water</strong> — still, room temperature (not sparkling)</div>
@@ -639,7 +658,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                     }}
                         title={pill.desc || ''}
                         style={{
-                          padding: '6px 14px',
+                          padding: '8px 14px', minHeight: 40,
                           borderRadius: 20,
                           border: '2px solid',
                           borderColor: selectedNose.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
@@ -680,7 +699,7 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                     }}
                         title={pill.desc || ''}
                         style={{
-                          padding: '6px 14px',
+                          padding: '8px 14px', minHeight: 40,
                           borderRadius: 20,
                           border: '2px solid',
                           borderColor: selectedPalate.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
@@ -731,17 +750,19 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
 
               {/* Price Guess + Bottle Guess + Rating */}
               <div className="card" style={{ marginBottom: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-grid-2">
                   <div>
                     <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
                       Price Guess ($)
                     </label>
                     <input
                       className="form-input"
-                      type="number"
+    type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
                       placeholder="e.g. 65"
                       value={priceGuess}
-                      onChange={(e) => setPriceGuess(e.target.value)}
+                      onChange={(e) => setPriceGuess(cleanPriceInput(e.target.value))}
                     />
                   </div>
                   <div>
@@ -750,18 +771,12 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                     </label>
                     <input
                       className="form-input"
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      min="1"
-                      max="5"
-                      step="0.1"
+                      autoComplete="off"
                       placeholder="e.g. 4.2"
                       value={rating}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val) && val <= 5) setRating(val);
-                        else if (e.target.value === '') setRating('');
-                      }}
+                      onChange={(e) => setRating(cleanRatingInput(e.target.value))}
                     />
                     <span style={{ fontSize: 11, color: 'var(--rc-gray-500)', marginTop: 2, display: 'block' }}>
                       Use decimals — 3.8, 4.2, etc.

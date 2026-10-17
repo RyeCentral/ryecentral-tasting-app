@@ -3,18 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../shared/TopBar';
 import * as api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { safeLocal } from '../../services/safeStorage';
 
 const SESSION_KEY = 'rc_tasting_session';
 
 function getSavedSession() {
   try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+    return JSON.parse(safeLocal.getItem(SESSION_KEY)) || null;
   } catch { return null; }
 }
 
 function saveSession(data) {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    safeLocal.setItem(SESSION_KEY, JSON.stringify(data));
   } catch { /* ignore */ }
 }
 
@@ -124,6 +125,10 @@ export default function GuestJoin() {
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   maxLength={6}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
                   style={{ textAlign: 'center', fontSize: 24, letterSpacing: 4, fontFamily: 'monospace' }}
                   autoFocus={!urlCode}
                 />
@@ -135,6 +140,7 @@ export default function GuestJoin() {
                   className="form-input"
                   type="text"
                   placeholder="What should we call you?"
+                  autoComplete="given-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoFocus={!!urlCode}

@@ -39,7 +39,7 @@ export default function BottleReview({ bottles, onDone, onBack, mode }) {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
         <button className="btn btn-secondary" onClick={onBack}>Change Bottles</button>
         <button className="btn btn-primary btn-lg" onClick={onDone}>
           {mode === 'solo' ? 'Start Tasting' : 'Looks Good — Set Prizes'}

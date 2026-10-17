@@ -42,6 +42,14 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+
+  /* Visible viewport height — 100vh on phones includes the area under the
+     browser toolbar, so prefer dynamic viewport units where supported. */
+  --app-height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root { --app-height: 100dvh; }
 }
 
 /* ── Global Reset ───────────────────────────────────────── */
@@ -52,7 +60,13 @@
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
+  overflow-x: hidden;
   font-family: var(--font-main);
   color: var(--rc-white);
   background: var(--rc-black);
@@ -283,7 +297,7 @@ body {
 
 .page {
   padding: var(--space-lg) 0;
-  min-height: calc(100vh - 52px);
+  min-height: calc(var(--app-height) - 52px);
   overflow-x: hidden;
 }
 
@@ -596,7 +610,8 @@ body {
 
 @media (max-width: 768px) {
   .product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: var(--space-sm);
   }
 
   .page-title {
@@ -638,4 +653,215 @@ body {
   .topbar-event {
     font-size: 11px;
   }
+}
+
+/* ── Mobile fixes ─────────────────────────────────────────
+   Most screens use inline styles, so the classes below are what the
+   components opt into for anything that must reflow on a phone. */
+
+/* iOS Safari zooms the page when a focused input's text is under 16px and
+   never zooms back out. Keep every text control at 16px or more. */
+input, select, textarea,
+.form-input,
+.search-bar input {
+  font-size: 16px;
+}
+
+button, a, input, select, textarea, label {
+  -webkit-tap-highlight-color: rgba(245, 166, 35, 0.2);
+  touch-action: manipulation; /* no 300ms double-tap delay */
+}
+
+img { max-width: 100%; }
+
+/* Range sliders: bigger, thumb-friendly hit area on touch screens */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--rc-orange);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rc-gray-300);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--rc-orange);
+  border: 3px solid var(--rc-pure-white);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rc-gray-300);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--rc-orange);
+  border: 3px solid var(--rc-pure-white);
+}
+
+/* Host live screen: main panel + 300px sidebar, stacked on phones/tablets */
+.live-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+.live-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.live-status-invite {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--rc-gray-500);
+}
+.flavor-compare-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+/* Header row with title on the left and actions on the right */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.header-row > * { min-width: 0; }
+
+/* Bottom action bar shown only on phones */
+.mobile-sticky-cta { display: none; }
+
+@media (max-width: 600px) {
+  .mobile-sticky-cta {
+    display: block;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin: 16px -12px 0;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--rc-black) 70%, rgba(26,26,26,0));
+  }
+  .product-card {
+    padding: 10px;
+  }
+  .product-card img {
+    max-height: 130px;
+  }
+  .product-card:hover {
+    transform: none; /* hover sticks after a tap on touch screens */
+  }
+}
+
+@media (max-width: 900px) {
+  .live-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .container,
+  .container-narrow {
+    padding: 0 12px;
+  }
+  /* A narrow container nested inside a container shouldn't pad twice */
+  .container .container-narrow,
+  .container-narrow .container-narrow {
+    padding: 0;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .page {
+    padding: var(--space-md) 0;
+  }
+
+  .btn-lg {
+    padding: 14px 20px;
+    font-size: 16px;
+  }
+
+  .live-status-invite {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .flavor-compare-row {
+    grid-template-columns: 84px 1fr 1fr;
+  }
+
+  .header-row > .header-actions {
+    width: 100%;
+  }
+  .header-row > .header-actions > .btn {
+    flex: 1;
+  }
+
+  .bottle-item {
+    gap: var(--space-sm);
+    padding: 12px;
+  }
+
+  .invite-code {
+    font-size: 28px;
+    letter-spacing: 3px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Top bar: brand + RyeCentral.com + email + Sign Out don't fit side by side */
+  .topbar-link {
+    display: none;
+  }
+  .topbar-brand span {
+    display: none;
+  }
+  .topbar-actions {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .topbar-user {
+    max-width: 90px;
+  }
+  .topbar-signout {
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Two side-by-side fields (price guess + rating) that stack on tiny phones */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+@media (max-width: 359px) {
+  .form-grid-2 { grid-template-columns: minmax(0, 1fr); }
 }

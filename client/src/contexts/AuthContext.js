@@ -14,10 +14,27 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { safeLocal } from '../services/safeStorage';
+import { fetchWithTimeout } from '../services/api';
 
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'rc_tasting_auth';
+
+/** Read a JWT's payload without verifying it (display/expiry only). */
+function decodeToken(token) {
+  try {
+    const part = token.split('.')[1];
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const json = decodeURIComponent(
+      atob(padded).split('').map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [customer, setCustomer] = useState(null);
@@ -26,50 +43,64 @@ export function AuthProvider({ children }) {
 
   // On mount, check for existing session
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const { token: savedToken } = JSON.parse(stored);
-        if (savedToken) {
-          // Validate token with server
-          fetch('/api/auth/validate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: savedToken }),
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.valid) {
-                setToken(savedToken);
-                setCustomer(data.customer);
-              } else {
-                localStorage.removeItem(STORAGE_KEY);
-              }
-            })
-            .catch(() => {
-              localStorage.removeItem(STORAGE_KEY);
-            })
-            .finally(() => setLoading(false));
-          return;
-        }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+    let savedToken = null;
+    try {
+      const stored = safeLocal.getItem(STORAGE_KEY);
+      savedToken = stored ? JSON.parse(stored).token : null;
+    } catch {
+      safeLocal.removeItem(STORAGE_KEY);
     }
-    setLoading(false);
+    if (!savedToken) {
+      setLoading(false);
+      return;
+    }
+
+    const claims = decodeToken(savedToken);
+    if (!claims || (claims.exp && claims.exp * 1000 < Date.now())) {
+      safeLocal.removeItem(STORAGE_KEY);
+      setLoading(false);
+      return;
+    }
+
+    fetchWithTimeout('/api/auth/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: savedToken }),
+    }, 10000)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid) {
+          setToken(savedToken);
+          setCustomer(data.customer);
+        } else {
+          safeLocal.removeItem(STORAGE_KEY);
+        }
+      })
+      .catch(() => {
+        // Network hiccup / slow server (common on phones): don't throw the
+        // user's session away. The token is unexpired, so let them in on its
+        // own claims — the server still verifies it on every API call.
+        setToken(savedToken);
+        setCustomer({
+          email: claims.email,
+          firstName: claims.firstName || (claims.email || '').split('@')[0],
+          displayName: claims.displayName || (claims.email || '').split('@')[0],
+        });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const saveSession = useCallback((newToken, newCustomer) => {
     setToken(newToken);
     setCustomer(newCustomer);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: newToken }));
+    safeLocal.setItem(STORAGE_KEY, JSON.stringify({ token: newToken }));
   }, []);
 
   /**
    * Request a one-time code be sent to the given email.
    */
   const sendCode = useCallback(async (email) => {
-    const res = await fetch('/api/auth/send-code', {
+    const res = await fetchWithTimeout('/api/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -85,7 +116,7 @@ export function AuthProvider({ children }) {
    * Verify a one-time code and sign in.
    */
   const verifyCode = useCallback(async (email, code) => {
-    const res = await fetch('/api/auth/verify-code', {
+    const res = await fetchWithTimeout('/api/auth/verify-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code }),
@@ -102,7 +133,7 @@ export function AuthProvider({ children }) {
    * Admin bypass: issue a JWT without requiring a code.
    */
   const adminGrant = useCallback(async (email, adminKey) => {
-    const res = await fetch('/api/auth/admin-grant', {
+    const res = await fetchWithTimeout('/api/auth/admin-grant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, adminKey }),
@@ -118,14 +149,14 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setToken(null);
     setCustomer(null);
-    localStorage.removeItem(STORAGE_KEY);
+    safeLocal.removeItem(STORAGE_KEY);
   }, []);
 
   // SSO login — auto-authenticate users already logged into RyeCentral.com
   const ssoLogin = async (email, ts, sig) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/auth/sso-login', {
+      const res = await fetchWithTimeout('/api/auth/sso-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, ts, sig }),

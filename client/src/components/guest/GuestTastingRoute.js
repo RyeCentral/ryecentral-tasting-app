@@ -1,12 +1,13 @@
 import React from 'react';
 import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import GuestTasting from './GuestTasting';
+import { safeLocal } from '../../services/safeStorage';
 
 const SESSION_KEY = 'rc_tasting_session';
 
 function getSavedSession() {
   try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+    return JSON.parse(safeLocal.getItem(SESSION_KEY)) || null;
   } catch { return null; }
 }
 

@@ -231,18 +231,18 @@ function StatRow({ label, guestValue, communityValue, unit, format }) {
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', padding: '10px 0',
+      display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 4, padding: '10px 0',
       borderBottom: '1px solid var(--rc-gray-200)',
     }}>
-      <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-600)' }}>{label}</div>
-      <div style={{ textAlign: 'right', minWidth: 70 }}>
+      <div style={{ flex: '1 1 80px', minWidth: 0, fontSize: 13, fontWeight: 600, color: 'var(--rc-gray-600)' }}>{label}</div>
+      <div style={{ textAlign: 'right', minWidth: 56 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#e8860c' }}>
           {unit === '$' ? '$' : ''}{gv}
         </div>
         <div style={{ fontSize: 10, color: 'var(--rc-gray-400)' }}>You</div>
       </div>
       <div style={{ width: 24, textAlign: 'center', fontSize: 14, color: 'var(--rc-gray-300)' }}>vs</div>
-      <div style={{ textAlign: 'left', minWidth: 70 }}>
+      <div style={{ textAlign: 'left', minWidth: 56 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#3b82f6' }}>
           {unit === '$' ? '$' : ''}{cv}
         </div>
@@ -250,7 +250,7 @@ function StatRow({ label, guestValue, communityValue, unit, format }) {
       </div>
       {diff !== null && (
         <div style={{
-          marginLeft: 8, padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+          marginLeft: 8, padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
           background: isClose ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.08)',
           color: isClose ? '#16a34a' : '#dc2626',
         }}>
@@ -411,7 +411,7 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
                   {(response.rating != null || community.score != null) && (
                     <StatRow
                       label="Rating (out of 5)"
-                      guestValue={response.rating || 0}
+                      guestValue={parseFloat(response.rating) || 0}
                       communityValue={community.score || 0}
                       format={(v) => typeof v === 'number' ? v.toFixed(1) : v}
                     />

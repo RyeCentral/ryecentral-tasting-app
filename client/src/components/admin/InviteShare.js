@@ -15,20 +15,49 @@ export default function InviteShare({ event, onBack }) {
       .catch(err => console.error('Failed to load QR code:', err));
   }, [event.id]);
 
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const flashCopied = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(joinUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const input = document.createElement('input');
-      input.value = joinUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      flashCopied();
+      return;
+    } catch { /* fall back below */ }
+    // iOS needs a readonly, on-screen-sized field and setSelectionRange
+    const input = document.createElement('textarea');
+    input.value = joinUrl;
+    input.setAttribute('readonly', '');
+    input.style.position = 'fixed';
+    input.style.top = '0';
+    input.style.opacity = '0';
+    input.style.fontSize = '16px';
+    document.body.appendChild(input);
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, joinUrl.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    document.body.removeChild(input);
+    if (ok) flashCopied();
+    else window.prompt('Copy this link:', joinUrl);
+  };
+
+  // Phones: open the native share sheet (Messages, WhatsApp, AirDrop…)
+  const shareLink = async () => {
+    try {
+      await navigator.share({
+        title: event.name || 'RyeCentral Tasting',
+        text: `Join my blind rye tasting! Code: ${event.inviteCode}`,
+        url: joinUrl,
+      });
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // user closed the sheet
+      copyLink();
     }
   };
 
@@ -46,7 +75,7 @@ export default function InviteShare({ event, onBack }) {
             Share this code or QR with your guests so they can join.
           </p>
 
-          <div className="invite-code" style={{ fontSize: 28, letterSpacing: 6, padding: '8px 16px', marginBottom: 8 }}>
+          <div className="invite-code" style={{ fontSize: 28, letterSpacing: 6, padding: '8px 16px', marginBottom: 8, maxWidth: '100%', overflowWrap: 'anywhere' }}>
             {event.inviteCode}
           </div>
 
@@ -66,6 +95,11 @@ export default function InviteShare({ event, onBack }) {
             {onBack && (
               <button className="btn btn-secondary" onClick={onBack}>
                 Back
+              </button>
+            )}
+            {canShare && (
+              <button className="btn btn-secondary" onClick={shareLink}>
+                Share Invite
               </button>
             )}
             <button className="btn btn-secondary" onClick={copyLink}>

@@ -21,6 +21,9 @@ import CommunityComparison from '../shared/CommunityComparison';
 import NoteIcon from '../shared/NoteIcons';
 import * as api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import usePreventPullToRefresh from '../../hooks/usePreventPullToRefresh';
+import { cleanPriceInput, cleanRatingInput, ratingToNumber } from '../../utils/numberInput';
+import { safeSession } from '../../services/safeStorage';
 
 const DEFAULT_FLAVOR_PROFILE = {
   sweetness: 5, ryeSpice: 5, herbalMint: 5, fruit: 5,
@@ -74,7 +77,7 @@ export default function SoloTasting({ eventId }) {
   const storageKey = `solo_${eventId}`;
   const loadPersisted = (field, fallback) => {
     try {
-      const stored = sessionStorage.getItem(storageKey);
+      const stored = safeSession.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[field] !== undefined) return parsed[field];
@@ -87,7 +90,7 @@ export default function SoloTasting({ eventId }) {
   useEffect(() => {
     if (!guestId) return;
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify({
+      safeSession.setItem(storageKey, JSON.stringify({
         guestId,
         currentIndex,
         savedResponses,
@@ -98,21 +101,8 @@ export default function SoloTasting({ eventId }) {
     } catch {}
   }, [guestId, currentIndex, savedResponses, phase, leaderboard, allReviewsPosted, storageKey]);
 
-  // Block iOS Safari pull-to-refresh
-  useEffect(() => {
-    let lastY = 0;
-    const handleTouchStart = (e) => { lastY = e.touches[0].clientY; };
-    const handleTouchMove = (e) => {
-      const y = e.touches[0].clientY;
-      if (window.scrollY === 0 && y > lastY) e.preventDefault();
-    };
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, []);
+  // Block iOS Safari pull-to-refresh (without cancelling slider drags)
+  usePreventPullToRefresh();
 
   // Initialize solo tasting on mount
   useEffect(() => {
@@ -120,7 +110,7 @@ export default function SoloTasting({ eventId }) {
       // Check for persisted session first
       const persisted = (() => {
         try {
-          const stored = sessionStorage.getItem(storageKey);
+          const stored = safeSession.getItem(storageKey);
           return stored ? JSON.parse(stored) : null;
         } catch { return null; }
       })();
@@ -190,7 +180,7 @@ export default function SoloTasting({ eventId }) {
       flavorProfile,
       priceGuess: parseFloat(priceGuess) || null,
       bottleGuess: bottle.product?.handle || '',
-      rating,
+      rating: ratingToNumber(rating),
       freeNotes,
     };
 
@@ -487,7 +477,7 @@ export default function SoloTasting({ eventId }) {
             <div className="card" style={{ marginBottom: 12, border: '2px solid var(--rc-orange)', background: 'var(--rc-orange-light)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <h3 style={{ fontSize: 15, color: 'var(--rc-orange)', margin: 0 }}>Reset Your Palate</h3>
-                <button onClick={() => setShowResetTips(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--rc-gray-500)' }}>&times;</button>
+                <button onClick={() => setShowResetTips(false)} aria-label="Dismiss" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, width: 40, height: 40, margin: '-8px -8px -8px 0', color: 'var(--rc-gray-500)' }}>&times;</button>
               </div>
               <div style={{ fontSize: 13, color: 'var(--rc-gray-700)', lineHeight: 1.6 }}>
                 <div style={{ marginBottom: 6 }}><strong>Sip water</strong> &mdash; still, room temperature (not sparkling)</div>
@@ -546,7 +536,7 @@ export default function SoloTasting({ eventId }) {
                     }}
                     title={pill.desc || ''}
                     style={{
-                      padding: '6px 14px', borderRadius: 20, border: '2px solid',
+                      padding: '8px 14px', minHeight: 40, borderRadius: 20, border: '2px solid',
                       borderColor: selectedNose.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
                       background: selectedNose.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-pure-white)',
                       cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
@@ -582,7 +572,7 @@ export default function SoloTasting({ eventId }) {
                     }}
                     title={pill.desc || ''}
                     style={{
-                      padding: '6px 14px', borderRadius: 20, border: '2px solid',
+                      padding: '8px 14px', minHeight: 40, borderRadius: 20, border: '2px solid',
                       borderColor: selectedPalate.includes(pill.text) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
                       background: selectedPalate.includes(pill.text) ? 'var(--rc-orange-light)' : 'var(--rc-pure-white)',
                       cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
@@ -628,17 +618,19 @@ export default function SoloTasting({ eventId }) {
 
           {/* Price Guess + Rating */}
           <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-grid-2">
               <div>
                 <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
                   Price Guess ($)
                 </label>
                 <input
                   className="form-input"
-                  type="number"
+type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
                   placeholder="e.g. 65"
                   value={priceGuess}
-                  onChange={(e) => setPriceGuess(e.target.value)}
+                  onChange={(e) => setPriceGuess(cleanPriceInput(e.target.value))}
                 />
               </div>
               <div>
@@ -647,18 +639,12 @@ export default function SoloTasting({ eventId }) {
                 </label>
                 <input
                   className="form-input"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="1"
-                  max="5"
-                  step="0.1"
+                  autoComplete="off"
                   placeholder="e.g. 4.2"
                   value={rating}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val) && val <= 5) setRating(val);
-                    else if (e.target.value === '') setRating('');
-                  }}
+                  onChange={(e) => setRating(cleanRatingInput(e.target.value))}
                 />
                 <span style={{ fontSize: 11, color: 'var(--rc-gray-500)', marginTop: 2, display: 'block' }}>
                   Use decimals — 3.8, 4.2, etc.

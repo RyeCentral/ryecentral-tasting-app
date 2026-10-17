@@ -79,7 +79,28 @@ export default function LoginPage() {
 
   const handleCodeChange = (index, value) => {
     // Only allow digits
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const digits = value.replace(/\D/g, '');
+
+    // iOS/Android one-time-code autofill (and some keyboards' paste) drop the
+    // whole code into a single box — spread it across the boxes.
+    if (digits.length > 1) {
+      const newCode = [...code];
+      for (let i = 0; i < digits.length && index + i < 6; i++) {
+        newCode[index + i] = digits[i];
+      }
+      setCode(newCode);
+      setError('');
+      const filled = newCode.join('');
+      if (filled.length === 6) {
+        codeRefs.current[5]?.blur();
+        handleVerifyCode(filled);
+      } else {
+        codeRefs.current[Math.min(index + digits.length, 5)]?.focus();
+      }
+      return;
+    }
+
+    const digit = digits.slice(-1);
     const newCode = [...code];
     newCode[index] = digit;
     setCode(newCode);
@@ -248,7 +269,7 @@ export default function LoginPage() {
           <>
             <p style={styles.subtitle}>
               We sent a 6-digit code to<br />
-              <strong style={{ color: 'var(--rc-black)' }}>{email}</strong>
+              <strong style={{ color: 'var(--rc-black)', overflowWrap: 'anywhere' }}>{email}</strong>
             </p>
 
             {error && <div style={styles.error}>{error}</div>}
@@ -263,7 +284,9 @@ export default function LoginPage() {
                       ref={(el) => (codeRefs.current[i] = el)}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
+                      pattern="[0-9]*"
+                      autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                      aria-label={`Digit ${i + 1}`}
                       value={digit}
                       onChange={(e) => handleCodeChange(i, e.target.value)}
                       onKeyDown={(e) => handleCodeKeyDown(i, e)}
@@ -373,7 +396,7 @@ export default function LoginPage() {
 
 const styles = {
   wrapper: {
-    minHeight: '100vh',
+    minHeight: 'var(--app-height, 100vh)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -386,7 +409,7 @@ const styles = {
     background: 'var(--rc-white)',
     borderRadius: 'var(--radius-lg)',
     boxShadow: 'var(--shadow-lg)',
-    padding: 'var(--space-xl)',
+    padding: 'clamp(20px, 6vw, 32px)',
     overflow: 'hidden',
   },
   header: {
@@ -475,13 +498,19 @@ const styles = {
   },
   codeContainer: {
     display: 'flex',
-    gap: 8,
+    gap: 'clamp(4px, 1.5vw, 8px)',
     justifyContent: 'center',
     marginBottom: 20,
   },
   codeInput: {
-    width: 48,
+    // Six boxes must fit a 320px phone inside the card padding.
+    flex: '1 1 0',
+    minWidth: 0,
+    maxWidth: 48,
     height: 56,
+    padding: 0,
+    background: 'var(--rc-pure-white)',
+    color: 'var(--rc-black)',
     textAlign: 'center',
     fontSize: 24,
     fontWeight: 700,

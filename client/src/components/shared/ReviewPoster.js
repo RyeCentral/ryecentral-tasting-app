@@ -137,7 +137,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  style={{ textAlign: 'center', fontSize: 15, padding: '10px 14px' }}
+                  style={{ textAlign: 'center', fontSize: 16, padding: '10px 14px' }}
                 />
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
                   Used for Judge.me reviewer identity only
@@ -155,8 +155,8 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                 onClick={handleSubmitAll}
                 disabled={bulkSubmitting || readyCount === 0}
                 style={{
-                  fontSize: 17, fontWeight: 800, padding: '14px 32px',
-                  borderRadius: 12, minWidth: 280,
+                  fontSize: 17, fontWeight: 800, padding: '14px 20px',
+                  borderRadius: 12, width: '100%', maxWidth: 360,
                   opacity: (bulkSubmitting || readyCount === 0) ? 0.6 : 1,
                 }}
               >
@@ -267,7 +267,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                           className="btn btn-sm"
                           onClick={() => setEditingLetter(isEditing ? null : bottle.letter)}
                           style={{
-                            fontSize: 12, padding: '4px 12px', borderRadius: 8,
+                            fontSize: 13, padding: '8px 14px', minHeight: 36, borderRadius: 8,
                             background: isEditing ? 'var(--rc-gray-200)' : 'transparent',
                             border: '1px solid var(--rc-gray-300)', color: 'var(--rc-gray-600)',
                             cursor: 'pointer', whiteSpace: 'nowrap',
@@ -293,7 +293,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                             className="form-input"
                             value={edits.title ?? preview.title}
                             onChange={(e) => handleEdit(bottle.letter, 'title', e.target.value)}
-                            style={{ fontSize: 14, fontWeight: 700, padding: '8px 12px' }}
+                            style={{ fontSize: 16, fontWeight: 700, padding: '8px 12px' }}
                           />
                         </div>
                         <div style={{ marginBottom: 8 }}>
@@ -305,7 +305,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                             rows={8}
                             value={edits.body ?? preview.body}
                             onChange={(e) => handleEdit(bottle.letter, 'body', e.target.value)}
-                            style={{ fontSize: 13, lineHeight: 1.5, resize: 'vertical' }}
+                            style={{ fontSize: 16, lineHeight: 1.5, resize: 'vertical' }}
                           />
                         </div>
                         <div style={{ marginBottom: 8 }}>
@@ -319,7 +319,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                                 type="button"
                                 onClick={() => handleEdit(bottle.letter, 'rating', star)}
                                 style={{
-                                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, padding: 0,
+                                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, padding: '2px 4px', minWidth: 40, minHeight: 40,
                                   color: star <= (edits.rating ?? preview.rating ?? 3) ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
                                 }}
                               >

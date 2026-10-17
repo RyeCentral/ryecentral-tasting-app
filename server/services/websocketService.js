@@ -250,7 +250,7 @@ function handleMessage(ws, room, event, message) {
         type: 'guest:favorite',
         guestId: ws.guestId,
         guestName: event.guests.get(ws.guestId)?.name,
-        favoriteLetter: message.favoriteLetter,
+        favoriteLetter: message.favoriteLetter || message.favoriteBottle,
         reason: message.reason,
       });
       break;

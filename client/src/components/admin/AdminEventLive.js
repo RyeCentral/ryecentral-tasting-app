@@ -212,7 +212,10 @@ export default function AdminEventLive({ eventId }) {
   const copyJoinLink = useCallback(() => {
     if (!event?.inviteCode) return;
     const joinUrl = `${window.location.origin}/join/${event.inviteCode}`;
-    navigator.clipboard.writeText(joinUrl).then(() => {
+    const write = navigator.clipboard?.writeText
+      ? navigator.clipboard.writeText(joinUrl)
+      : Promise.reject(new Error('clipboard unavailable'));
+    write.then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     }).catch(() => {
@@ -286,20 +289,21 @@ export default function AdminEventLive({ eventId }) {
         <div className="container">
 
           {/* Connection Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <div className="live-status">
             <div style={{
-              width: 10, height: 10, borderRadius: '50%',
+              width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
               background: connected ? 'var(--rc-green)' : 'var(--rc-red)',
             }} />
             <span style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
               {connected ? 'Connected' : 'Reconnecting...'}
             </span>
-            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--rc-gray-500)' }}>
+            <span className="live-status-invite">
               Invite code: <strong style={{ color: 'var(--rc-orange)' }}>{event.inviteCode}</strong>
               <button
                 onClick={copyJoinLink}
                 style={{
-                  padding: '4px 10px',
+                  padding: '6px 12px',
+                  minHeight: 32,
                   fontSize: 12,
                   fontWeight: 600,
                   border: '1px solid var(--rc-orange)',
@@ -316,7 +320,7 @@ export default function AdminEventLive({ eventId }) {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'start' }}>
+          <div className="live-layout">
 
             {/* ── Main Panel ──────────────────────── */}
             <div>
@@ -359,7 +363,7 @@ export default function AdminEventLive({ eventId }) {
                       <div className="bottle-letter" style={{ width: 56, height: 56, fontSize: 24 }}>
                         {currentBottle.letter}
                       </div>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <h2 style={{ fontSize: 20, marginBottom: 4 }}>
                           Now Tasting: Bottle {currentBottle.letter}
                         </h2>
@@ -527,31 +531,31 @@ export default function AdminEventLive({ eventId }) {
                             Help guests understand what 0 vs 10 means for each slider:
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4, color: 'var(--rc-gray-700)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.04)', borderRadius: 6, fontWeight: 600 }}>
+                            <div className="flavor-compare-row" style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 6, fontWeight: 600 }}>
                               <span>Category</span><span>0 (Low)</span><span>10 (High)</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                            <div className="flavor-compare-row">
                               <strong>Sweetness</strong><span>Bone dry, no sweetness</span><span>Very sweet — maple syrup, honey</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                            <div className="flavor-compare-row" style={{ background: 'rgba(0,0,0,0.02)' }}>
                               <strong>Rye Spice</strong><span>No spice, smooth</span><span>Intense pepper/cinnamon burn</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                            <div className="flavor-compare-row">
                               <strong>Herbal/Mint</strong><span>No herbal notes</span><span>Strong dill, eucalyptus, menthol</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                            <div className="flavor-compare-row" style={{ background: 'rgba(0,0,0,0.02)' }}>
                               <strong>Fruit</strong><span>No fruit detected</span><span>Bursting cherry, apple, citrus</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                            <div className="flavor-compare-row">
                               <strong>Oak/Vanilla</strong><span>No wood influence</span><span>Heavy char, rich vanilla, coconut</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                            <div className="flavor-compare-row" style={{ background: 'rgba(0,0,0,0.02)' }}>
                               <strong>Body</strong><span>Thin, watery, light</span><span>Thick, chewy, full mouthfeel</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px' }}>
+                            <div className="flavor-compare-row">
                               <strong>Heat</strong><span>No burn, very smooth</span><span>Fiery, intense alcohol burn</span>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: 4, fontSize: 12, padding: '4px 8px', background: 'rgba(0,0,0,0.02)' }}>
+                            <div className="flavor-compare-row" style={{ background: 'rgba(0,0,0,0.02)' }}>
                               <strong>Finish</strong><span>Gone instantly, no linger</span><span>Lasts minutes, evolving flavors</span>
                             </div>
                           </div>
@@ -713,7 +717,7 @@ export default function AdminEventLive({ eventId }) {
                     <button
                       className="btn btn-primary"
                       onClick={() => navigate('/admin')}
-                      style={{ minWidth: 240 }}
+                      style={{ width: "100%", maxWidth: 320 }}
                     >
                       Save &amp; Return to Dashboard
                     </button>
@@ -745,10 +749,10 @@ export default function AdminEventLive({ eventId }) {
                     {(event.guests || []).map((guest) => (
                       <div key={guest.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
                         <div style={{
-                          width: 8, height: 8, borderRadius: '50%',
+                          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
                           background: guest.connected !== false ? 'var(--rc-green)' : 'var(--rc-gray-300)',
                         }} />
-                        <span>{guest.name}</span>
+                        <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{guest.name}</span>
                       </div>
                     ))}
                   </div>
@@ -806,7 +810,7 @@ export default function AdminEventLive({ eventId }) {
                       border: rank === 0 ? '1px solid var(--rc-orange)' : '1px solid var(--rc-gray-200)',
                     }}>
                       <span style={{
-                        width: 22, height: 22, borderRadius: '50%',
+                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 12, fontWeight: 700,
                         background: rank < 3 ? 'var(--rc-orange)' : 'var(--rc-gray-300)',
@@ -814,7 +818,7 @@ export default function AdminEventLive({ eventId }) {
                       }}>
                         {rank + 1}
                       </span>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: rank === 0 ? 700 : 400 }}>
+                      <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', fontSize: 13, fontWeight: rank === 0 ? 700 : 400 }}>
                         {entry.guestName}
                       </span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--rc-orange)' }}>

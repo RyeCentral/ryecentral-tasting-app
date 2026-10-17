@@ -11,9 +11,14 @@ class WebSocketService {
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
     this._params = null;
+    this._queue = []; // messages sent while the socket was down (phone locked, tunnel, etc.)
   }
 
   connect({ eventId, role, guestId }) {
+    const prev = this._params;
+    if (!prev || prev.eventId !== eventId || prev.role !== role || prev.guestId !== guestId) {
+      this._queue = []; // never replay one event's messages into another
+    }
     this._params = { eventId, role, guestId };
 
     // Close existing connection if any (without triggering reconnect)
@@ -37,6 +42,7 @@ class WebSocketService {
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
+      this._flush();
       this._emit('connected', {});
     };
 
@@ -73,6 +79,8 @@ class WebSocketService {
 
   disconnect() {
     this.maxReconnectAttempts = 0;
+    this._queue = [];
+    this._params = null;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -80,10 +88,34 @@ class WebSocketService {
     this.listeners.clear();
   }
 
+  /**
+   * Send a message. If the socket isn't open (common on phones after the
+   * screen locks), queue it and deliver on reconnect instead of dropping it.
+   * Returns true if it went out immediately.
+   */
   send(data) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data));
+      try {
+        this.ws.send(JSON.stringify(data));
+        return true;
+      } catch { /* fall through to queue */ }
     }
+    this._queue.push(data);
+    if (this._queue.length > 50) this._queue.shift();
+    // Socket is dead and no retry is pending — kick a reconnect
+    if (this._params && (!this.ws || this.ws.readyState === WebSocket.CLOSED)) {
+      this.reconnect();
+    }
+    return false;
+  }
+
+  _flush() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const pending = this._queue;
+    this._queue = [];
+    pending.forEach((msg) => {
+      try { this.ws.send(JSON.stringify(msg)); } catch { this._queue.push(msg); }
+    });
   }
 
   on(type, callback) {

@@ -222,13 +222,13 @@ export default function AdminSetup() {
 
                 {/* Mode toggle */}
                 <div style={{
-                  display: 'flex', gap: 10, marginBottom: 20,
+                  display: 'flex', gap: 'clamp(6px, 2.5vw, 10px)', marginBottom: 20,
                 }}>
                   <button
                     type="button"
                     onClick={() => setMode('group')}
                     style={{
-                      flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                      flex: 1, minWidth: 0, padding: '14px 8px', borderRadius: 12, cursor: 'pointer',
                       border: mode === 'group' ? '2px solid var(--rc-orange)' : '2px solid var(--rc-gray-200)',
                       background: mode === 'group' ? 'rgba(232, 134, 12, 0.06)' : 'var(--rc-white)',
                       textAlign: 'center', transition: 'all 0.15s',
@@ -246,7 +246,7 @@ export default function AdminSetup() {
                     type="button"
                     onClick={() => setMode('solo')}
                     style={{
-                      flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                      flex: 1, minWidth: 0, padding: '14px 8px', borderRadius: 12, cursor: 'pointer',
                       border: mode === 'solo' ? '2px solid var(--rc-orange)' : '2px solid var(--rc-gray-200)',
                       background: mode === 'solo' ? 'rgba(232, 134, 12, 0.06)' : 'var(--rc-white)',
                       textAlign: 'center', transition: 'all 0.15s',
@@ -301,21 +301,23 @@ export default function AdminSetup() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '12px 16px',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                        padding: '12px 14px',
                         background: '#f8f8f8',
                         borderRadius: 8,
                         marginBottom: 8,
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 16 }}>{evt.name}</div>
+                      <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 16, overflowWrap: 'anywhere' }}>{evt.name}</div>
                         <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>
                           {STATUS_LABELS[evt.status] || evt.status}
                           {evt.bottles?.length > 0 && ` · ${evt.bottles.length} bottle${evt.bottles.length !== 1 ? 's' : ''}`}
                           {evt.guestCount > 0 && ` · ${evt.guestCount} guest${evt.guestCount !== 1 ? 's' : ''}`}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
                         {(evt.status === 'complete' || (evt.status === 'setup' && (!evt.guestCount || evt.guestCount === 0))) && (
                           <button
                             className="btn btn-secondary btn-sm"
