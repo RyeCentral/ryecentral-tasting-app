@@ -69,7 +69,7 @@ export default function PrizeSetup({ onSave, onBack, loading }) {
           ))}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" type="button" onClick={onBack}>Back</button>
+            <button className="btn btn-secondary" type="button" onClick={onBack} style={{ flex: '1 1 100px' }}>Back</button>
             <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ flex: '1 1 200px' }}>
               {loading ? 'Saving...' : 'Save & Generate Invite'}
             </button>

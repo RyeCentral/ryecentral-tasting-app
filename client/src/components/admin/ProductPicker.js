@@ -163,6 +163,7 @@ export default function ProductPicker({ selectedProducts, onToggleProduct, onCon
       )}
 
       {/* Phones: keep Continue reachable while scrolling a long bottle list */}
+      {selectedProducts.length > 0 && <div className="mobile-sticky-cta-spacer" />}
       {selectedProducts.length > 0 && (
         <div className="mobile-sticky-cta">
           <button

@@ -364,7 +364,7 @@ export default function AdminEventLive({ eventId }) {
                         {currentBottle.letter}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 style={{ fontSize: 20, marginBottom: 4 }}>
+                        <h2 style={{ fontSize: 'clamp(17px, 5vw, 20px)', marginBottom: 4 }}>
                           Now Tasting: Bottle {currentBottle.letter}
                         </h2>
                         <p style={{ fontSize: 14, color: 'var(--rc-gray-500)' }}>
