@@ -86,8 +86,7 @@ function shuffleArray(arr) {
  * Returns { pills: [...], realCount: N }
  * Pills contain { text, emoji, desc } — isDecoy is NOT included!
  */
-function buildPillBoxNotes(realNotes) {
-  const allPossibleNotes = [
+const ALL_POSSIBLE_NOTES = [
     'caramel', 'vanilla', 'cinnamon', 'black pepper', 'clove', 'nutmeg',
     'oak', 'honey', 'maple syrup', 'brown sugar', 'toffee', 'butterscotch',
     'cherry', 'apple', 'pear', 'dried fruit', 'raisin', 'citrus zest',
@@ -97,22 +96,20 @@ function buildPillBoxNotes(realNotes) {
     'grain', 'bread', 'corn', 'rye spice', 'white pepper', 'molasses',
     'walnut', 'almond', 'pecan', 'coconut', 'banana', 'tropical fruit',
     'stone fruit', 'peach', 'apricot', 'plum', 'fig', 'date',
-  ];
+    'sage', 'eucalyptus', 'cedar', 'sandalwood',
+];
+
+// Every pill box shows the bottle's real notes plus this many decoys
+// (Kevin, Oct 2026: "+5 on whatever the real count is", so 10-11 in most cases).
+const DECOY_COUNT = 5;
+
+function buildPillBoxNotes(realNotes) {
+  const allPossibleNotes = ALL_POSSIBLE_NOTES;
 
   const realSet = new Set(realNotes.map((n) => n.toLowerCase()));
   const available = allPossibleNotes.filter((n) => !realSet.has(n));
 
-  const TARGET_TOTAL = 9;
-  const realCount = realNotes.length;
-
-  let decoyCount;
-  if (realCount >= 10) {
-    decoyCount = 0;
-  } else if (realCount >= 8) {
-    decoyCount = Math.min(10 - realCount, available.length);
-  } else {
-    decoyCount = Math.min(TARGET_TOTAL - realCount, available.length);
-  }
+  const decoyCount = Math.min(DECOY_COUNT, available.length);
 
   const decoys = shuffleArray(available).slice(0, decoyCount);
 
@@ -125,11 +122,32 @@ function buildPillBoxNotes(realNotes) {
 }
 
 /**
+ * Notes a taster can add themselves ("+ Add note"): the catalogue minus the
+ * pills already on screen. Every real note is always among the visible
+ * pills, so this list never leaks an answer. Added notes are saved and go in
+ * the taster's review but are never scored.
+ */
+function buildExtraOptions(pills) {
+  const shown = new Set((pills || []).map((p) => p.text.toLowerCase()));
+  return ALL_POSSIBLE_NOTES
+    .filter((n) => !shown.has(n))
+    .sort()
+    .map((text) => ({ text, emoji: getNoteMeta(text).emoji, desc: getNoteMeta(text).desc }));
+}
+
+/**
  * Ensure a bottle has cached pills (nose + palate). Used by both
  * WebSocket (group) and REST (solo) flows. Idempotent — only generates once.
  */
 function ensureBottlePills(bottle) {
-  if (bottle._cachedPills) return;
+  if (bottle._cachedPills) {
+    // Pills cached before "+ Add note" existed: add the option lists only
+    if (!bottle._cachedPills.noseExtraOptions) {
+      bottle._cachedPills.noseExtraOptions = buildExtraOptions(bottle._cachedPills.noseNotePills);
+      bottle._cachedPills.palateExtraOptions = buildExtraOptions(bottle._cachedPills.palateNotePills);
+    }
+    return;
+  }
 
   const community = bottle.product?.community || {};
   const nosePillData = buildPillBoxNotes(community.noseNotes || []);
@@ -140,11 +158,14 @@ function ensureBottlePills(bottle) {
     noseRealCount: nosePillData.realCount,
     palateNotePills: palatePillData.pills,
     palateRealCount: palatePillData.realCount,
+    noseExtraOptions: buildExtraOptions(nosePillData.pills),
+    palateExtraOptions: buildExtraOptions(palatePillData.pills),
   };
 }
 
 module.exports = {
   buildPillBoxNotes,
+  buildExtraOptions,
   ensureBottlePills,
   getNoteMeta,
   shuffleArray,

@@ -282,6 +282,8 @@ function sanitizeBottleForGuest(bottle, event) {
     noseRealCount: bottle._cachedPills.noseRealCount,
     palateNotePills: bottle._cachedPills.palateNotePills,
     palateRealCount: bottle._cachedPills.palateRealCount,
+    noseExtraOptions: bottle._cachedPills.noseExtraOptions,
+    palateExtraOptions: bottle._cachedPills.palateExtraOptions,
     bottleOptions, // All bottle names for guessing
     flavorProfileKeys: ['sweetness', 'ryeSpice', 'herbalMint', 'fruit', 'oakVanilla', 'body', 'heat', 'finishLength'],
   };

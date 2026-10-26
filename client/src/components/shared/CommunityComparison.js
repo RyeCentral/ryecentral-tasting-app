@@ -380,6 +380,11 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
                   guestNotes={response.selectedNose}
                   communityNotes={community.noseNotes}
                 />
+                {response.selectedNoseOwn?.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', margin: '-4px 0 10px' }}>
+                    Your own nose notes (not scored): <strong style={{ color: 'var(--rc-gray-700)' }}>{response.selectedNoseOwn.join(', ')}</strong>
+                  </div>
+                )}
 
                 {/* Palate Notes Comparison */}
                 <NoteComparison
@@ -387,6 +392,11 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
                   guestNotes={response.selectedPalate}
                   communityNotes={community.palateNotes}
                 />
+                {response.selectedPalateOwn?.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--rc-gray-500)', margin: '-4px 0 10px' }}>
+                    Your own palate notes (not scored): <strong style={{ color: 'var(--rc-gray-700)' }}>{response.selectedPalateOwn.join(', ')}</strong>
+                  </div>
+                )}
 
                 {/* Stats: Price, Rating, Bottle ID */}
                 <div style={{

@@ -5,6 +5,7 @@ import Leaderboard from '../shared/Leaderboard';
 import ReviewPoster from '../shared/ReviewPoster';
 import CommunityComparison from '../shared/CommunityComparison';
 import NoteIcon from '../shared/NoteIcons';
+import OwnNotePicker from '../shared/OwnNotePicker';
 import wsService from '../../services/websocket';
 import usePreventPullToRefresh from '../../hooks/usePreventPullToRefresh';
 import { cleanPriceInput, cleanRatingInput, ratingToNumber } from '../../utils/numberInput';
@@ -31,6 +32,8 @@ function toResponsePayload(r) {
   return {
     noseNotes: r.selectedNose || [],
     palateNotes: r.selectedPalate || [],
+    noseOwnNotes: r.selectedNoseOwn || [],
+    palateOwnNotes: r.selectedPalateOwn || [],
     flavorProfile: r.flavorProfile,
     priceGuess: parseFloat(r.priceGuess) || null,
     bottleGuess: r.bottleGuess,
@@ -70,6 +73,9 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   // Form state for current bottle
   const [selectedNose, setSelectedNose] = useState([]);
   const [selectedPalate, setSelectedPalate] = useState([]);
+  // Notes the taster added via "+ Add note" — saved and reviewed, never scored
+  const [selectedNoseOwn, setSelectedNoseOwn] = useState([]);
+  const [selectedPalateOwn, setSelectedPalateOwn] = useState([]);
   const [flavorProfile, setFlavorProfile] = useState({ ...DEFAULT_FLAVOR_PROFILE });
   const [priceGuess, setPriceGuess] = useState('');
   const [bottleGuess, setBottleGuess] = useState('');
@@ -211,6 +217,8 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
   const resetForm = useCallback(() => {
     setSelectedNose([]);
     setSelectedPalate([]);
+    setSelectedNoseOwn([]);
+    setSelectedPalateOwn([]);
     setFlavorProfile({ ...DEFAULT_FLAVOR_PROFILE });
     setPriceGuess('');
     setBottleGuess('');
@@ -238,11 +246,11 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     wsService.send({
       type: 'guest:response',
       bottleLetter: bottle.letter,
-      response: toResponsePayload({ selectedNose, selectedPalate, flavorProfile, priceGuess, bottleGuess, rating, freeNotes }),
+      response: toResponsePayload({ selectedNose, selectedPalate, selectedNoseOwn, selectedPalateOwn, flavorProfile, priceGuess, bottleGuess, rating, freeNotes }),
     });
     setSavedResponses((prev) => ({
       ...prev,
-      [bottle.letter]: { selectedNose, selectedPalate, flavorProfile, priceGuess, bottleGuess, rating, freeNotes },
+      [bottle.letter]: { selectedNose, selectedPalate, selectedNoseOwn, selectedPalateOwn, flavorProfile, priceGuess, bottleGuess, rating, freeNotes },
     }));
     setSubmitted((prev) => ({ ...prev, [bottle.letter]: true }));
     if (viewingPrevBottle) {
@@ -267,6 +275,8 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
     if (!saved) return;
     setSelectedNose(saved.selectedNose || []);
     setSelectedPalate(saved.selectedPalate || []);
+    setSelectedNoseOwn(saved.selectedNoseOwn || []);
+    setSelectedPalateOwn(saved.selectedPalateOwn || []);
     setFlavorProfile({ ...DEFAULT_FLAVOR_PROFILE, ...(saved.flavorProfile || {}) });
     setPriceGuess(saved.priceGuess || '');
     setBottleGuess(saved.bottleGuess || '');
@@ -672,6 +682,12 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         <NoteIcon name={pill.text} size={14} /><span style={{ marginLeft: 4 }}>{pill.text}</span>
                       </button>
                     ))}
+                    <OwnNotePicker
+                      label="nose"
+                      options={activeBottle.noseExtraOptions || []}
+                      selected={selectedNoseOwn}
+                      onChange={setSelectedNoseOwn}
+                    />
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 10, marginBottom: 0, fontStyle: 'italic' }}>
                     TIP: Cup the glass, swirl gently, and take short sniffs. Let the alcohol fade before nosing again.
@@ -713,6 +729,12 @@ export default function GuestTasting({ eventId, guestId, guestName }) {
                         <NoteIcon name={pill.text} size={14} /><span style={{ marginLeft: 4 }}>{pill.text}</span>
                       </button>
                     ))}
+                    <OwnNotePicker
+                      label="palate"
+                      options={activeBottle.palateExtraOptions || []}
+                      selected={selectedPalateOwn}
+                      onChange={setSelectedPalateOwn}
+                    />
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--rc-gray-500)', marginTop: 10, marginBottom: 0, fontStyle: 'italic' }}>
                     TIP: Take a small sip and let it coat your tongue. Wait 20 seconds, then sip again — you'll pick up different notes.

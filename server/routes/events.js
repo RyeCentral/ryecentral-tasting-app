@@ -249,6 +249,8 @@ router.post('/:id/solo-start', (req, res) => {
     palateNotePills: b._cachedPills.palateNotePills,
     noseRealCount: b._cachedPills.noseRealCount,
     palateRealCount: b._cachedPills.palateRealCount,
+    noseExtraOptions: b._cachedPills.noseExtraOptions,
+    palateExtraOptions: b._cachedPills.palateExtraOptions,
   }));
 
   res.json({ guest, bottles, event: event.toJSON('admin') });

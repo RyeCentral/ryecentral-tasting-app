@@ -90,20 +90,33 @@ function generateReviewTitle(response, product) {
  * Build the review body from nose/palate pills, flavor profile, and free notes.
  * Formatted for readability as a Judge.me text review.
  */
+function mergeNotes(picked, own) {
+  const out = [];
+  const seen = new Set();
+  [...(picked || []), ...(Array.isArray(own) ? own.slice(0, 5) : [])].forEach((n) => {
+    if (typeof n !== 'string') return;
+    const t = n.trim().toLowerCase().slice(0, 40);
+    if (t && !seen.has(t)) { seen.add(t); out.push(t); }
+  });
+  return out;
+}
+
 function generateReviewBody(response, product, guestName) {
   const parts = [];
 
   // Opening line
   parts.push(`Tasted blind at a RyeCentral home tasting event.`);
 
-  // Nose notes
-  if (response.noseNotes?.length) {
-    parts.push(`\nNose: ${response.noseNotes.join(', ')}`);
+  // Nose / palate notes: picked pills plus any the taster added themselves
+  // ("+ Add note" — catalogue words only, never scored)
+  const nose = mergeNotes(response.noseNotes, response.noseOwnNotes);
+  if (nose.length) {
+    parts.push(`\nNose: ${nose.join(', ')}`);
   }
 
-  // Palate notes
-  if (response.palateNotes?.length) {
-    parts.push(`Palate: ${response.palateNotes.join(', ')}`);
+  const palate = mergeNotes(response.palateNotes, response.palateOwnNotes);
+  if (palate.length) {
+    parts.push(`Palate: ${palate.join(', ')}`);
   }
 
   // Flavor Profile
