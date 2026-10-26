@@ -1,0 +1,799 @@
+{%- comment -%}
+  RyeCentral Consensus Index — step 10, phase 1 (Sep 2026).
+
+  TASTING QR CODES (25 Oct 2026, revised 25 Oct: one bottle at a time, no
+  bulk sheet — Kevin; moved to its own far-right "QR" column the same day).
+  Each row has an empty td.rc-ci-qrc in the source (so the column never shifts
+  the layout) that script fills with a QR icon button, which opens that
+  ONE bottle's QR window (tube / bottle-back preset, width, copies, Print,
+  SVG, PNG). They are BUTTONS (no crawlable links) injected by script, so the
+  page's HTML, links and structured data are unchanged. The
+  generator (assets/rc-ci-qr.js, ~35 KB) loads only on first tap. Codes encode
+  HTTPS://WWW.RYECENTRAL.COM/T/{first 6 hex of md5(handle)}; every /t/ path
+  is a Shopify URL redirect to the noindex router /pages/taste?h={handle},
+  which forwards into the tasting app (the app host lives on that page only,
+  so printed codes survive a host change). A new review needs its /t/
+  redirect added; without it the generator falls back to the longer URL and
+  warns. Read the header of assets/rc-ci-qr.js before changing the code scheme
+  — anything already printed depends on it.
+
+  Live from the review products' ryecentral.* metafields. There is no second
+  copy of the data: every cell is read at render time, so the page can never
+  disagree with a review page or the tracker.
+
+  Publishes DERIVED fields only: score /5, published-ratings count, source
+  count, confidence band + percent, last verified, the change at the latest
+  reading and its public note. Per-source values never leave Audit Master.
+
+  Structured data: Dataset + ItemList linking every row to its review. The
+  score is NEVER placed in aggregateRating / Review — it is a compiled
+  figure, not a user rating (see the review-schema fix, Sep 2026).
+
+  Data terms (decided 14 Sep 2026, revised 22 Oct 2026): proprietary, quoting
+  with attribution welcome; search engines and AI systems may read, index,
+  cite and TRAIN on the public pages (Kevin, 22 Oct 2026 — the TDMRep
+  reservation was removed from meta-tags.liquid the same day); copying or
+  scraping the dataset to republish / rebuild / resell it, use inside a
+  product, database or ranking only under a data-partner licence. Free API +
+  MCP access (phases 2-3, 22 Oct 2026, /pages/consensus-api) needs a free key and
+  the citation shown with every score; CSV = personal evaluation licence. The CSV sits behind a click-through agreement: the form posts to
+  Shopify as a normal customer signup (tags consensus-data-terms /
+  consensus-terms-v1 / consensus-use:* / csv:<id>) so the assent is recorded
+  server-side BEFORE the file is delivered; Shopify returns the visitor with
+  customer_posted=true and only then does the download fire, carrying the
+  download ID and licensee email on every row. Do not switch this to a
+  background fetch or a hidden iframe — /contact is captcha-gated and both
+  fail silently, leaving a download with no agreement behind it (tested
+  14 Sep 2026). No public JSON view — phase 2 serves partners through the
+  Worker with keys.
+
+  Confidence vocabulary (19 Sep 2026): the public words are EARLY / SOLID /
+  STRONG, EARLY lowest. A row prints the band word STRAIGHT FROM the
+  `consensus_confidence` metafield, so this page can never disagree with a
+  review page or the badge — never hardcode a band word into a row, change the
+  data. Colour, counters, chips and filters run off an internal tier key
+  (high / medium / low, unchanged so the CSS did not have to move) that accepts
+  BOTH vocabularies — strong|high, solid|medium, early|low — and falls back to
+  the composite (>=80, >=60, else) if a word is ever unrecognised. That is what
+  lets the metafields migrate after this is published instead of in lockstep.
+  The fourth state is Unverified: a score compiled at creation with no engine
+  reading behind it. Its label is set once in `baseline_label` below.
+
+  SEO deploy (20 Oct 2026) — Primary keyword "rye whiskey ratings":
+  * Rows are now SORTED SERVER-SIDE by score (ties by ratings count) and the
+    rank number is printed into the HTML, so a crawler reads the ranking
+    without JavaScript. The sort is done in Liquid by prefixing every captured
+    row with a fixed-width key (12 chars: 2 for inverted score, 7 for inverted
+    count, 3 for the loop index) and sorting the joined string — see the
+    "sorted" block below. The script still re-sorts on filter/sort changes
+    exactly as before.
+  * The ItemList is now ItemListOrderDescending with positions following rank.
+  * A "Highest-rated at Strong confidence" block (top 5 Strong-band rows by
+    overall rank) and an FAQ block (+ FAQPage JSON-LD) are rendered from the
+    same loop — still no second copy of the data. FAQ markup earns no rich
+    result since May 2026; it is there for understanding and AI extraction.
+  * The H1 falls back to the page title when the section heading is blank
+    (template sets it blank), so the H1 is edited from Pages, not the theme.
+  * Every score quoted in prose keeps the reserved form
+    "RyeCentral Consensus Score n/5".
+{%- endcomment -%}
+
+{%- liquid
+  assign coll = collections['rye-whiskey-reviews']
+  assign n_total = 0
+  assign n_high = 0
+  assign n_med = 0
+  assign n_low = 0
+  assign n_base = 0
+  assign n_verified = 0
+  assign baseline_label = 'Unverified'
+  assign baseline_sub = 'first reading queued'
+  assign dates = ''
+  assign items = ''
+  assign rows = ''
+  assign keyed = ''
+  assign top_html = ''
+  assign n_top = 0
+  assign top1_name = ''
+  assign top1_handle = ''
+  assign top1_score = ''
+  assign top1_pct = ''
+  assign top1_srcs = ''
+  assign shop_url = shop.url
+-%}
+
+{%- paginate coll.products by 250 -%}
+{%- for product in coll.products -%}
+  {%- if product.type != 'Rye Whiskey Review' -%}{%- continue -%}{%- endif -%}
+  {%- assign score_raw = product.metafields.ryecentral.community_score.value -%}
+  {%- if score_raw == blank -%}{%- continue -%}{%- endif -%}
+  {%- assign score = score_raw | round: 1 -%}
+  {%- assign count = product.metafields.ryecentral.community_rating_count.value | default: 0 -%}
+  {%- assign band = product.metafields.ryecentral.consensus_confidence.value -%}
+  {%- assign pct = product.metafields.ryecentral.consensus_confidence_score.value -%}
+  {%- assign srcs = product.metafields.ryecentral.consensus_sources_count.value -%}
+  {%- assign lv_raw = product.metafields.ryecentral.consensus_last_verified.value -%}
+  {%- assign hist = product.metafields.ryecentral.consensus_history.value -%}
+  {%- comment -%} Public notes (24 Oct 2026): readers and the CSV see ryecentral.consensus_public_notes, one plain-English line per reading, index-aligned with consensus_history.readings. The engine's internal `why` audit note is never rendered. {%- endcomment -%}
+  {%- assign pubnotes = product.metafields.ryecentral.consensus_public_notes.value -%}
+  {%- assign brand = product.metafields.ryecentral.spec_brand.value | default: product.vendor -%}
+  {%- assign typ = product.metafields.ryecentral.spec_type.value -%}
+  {%- assign purl = shop_url | append: '/products/' | append: product.handle -%}
+  {%- assign n_total = n_total | plus: 1 -%}
+
+  {%- assign lv = '' -%}
+  {%- if lv_raw != blank -%}
+    {%- assign lv = lv_raw | date: '%Y-%m-%d' -%}
+  {%- endif -%}
+
+  {%- assign nread = 0 -%}
+  {%- assign delta = 0 -%}
+  {%- assign why = '' -%}
+  {%- assign held = false -%}
+  {%- if hist and hist.readings and hist.readings.size > 0 -%}
+    {%- assign nread = hist.readings.size -%}
+    {%- assign lastr = hist.readings.last -%}
+    {%- assign delta = lastr.delta | default: 0 -%}
+    {%- assign ni_last = nread | minus: 1 -%}
+    {%- if pubnotes and pubnotes.notes and pubnotes.notes.size > ni_last -%}
+      {%- assign why = pubnotes.notes[ni_last] | default: '' -%}
+    {%- endif -%}
+    {%- assign held = lastr.held | default: false -%}
+  {%- endif -%}
+
+  {%- comment -%} Confidence and the verified date come only from an engine reading (history present). A creation-time band with no composite is shown as Baseline until the engine's first run. {%- endcomment -%}
+  {%- if nread == 0 -%}
+    {%- assign band = '' -%}{%- assign pct = '' -%}{%- assign lv = '' -%}
+  {%- endif -%}
+  {%- if band == blank -%}
+    {%- assign bandkey = 'baseline' -%}
+    {%- assign n_base = n_base | plus: 1 -%}
+  {%- else -%}
+    {%- assign bandraw = band | downcase | strip -%}
+    {%- assign n_verified = n_verified | plus: 1 -%}
+    {%- if lv != blank -%}{%- assign dates = dates | append: lv | append: ',' -%}{%- endif -%}
+    {%- assign bandkey = '' -%}
+    {%- if bandraw == 'strong' or bandraw == 'high' -%}{%- assign bandkey = 'high' -%}{%- endif -%}
+    {%- if bandraw == 'solid' or bandraw == 'medium' -%}{%- assign bandkey = 'medium' -%}{%- endif -%}
+    {%- if bandraw == 'early' or bandraw == 'low' -%}{%- assign bandkey = 'low' -%}{%- endif -%}
+    {%- if bandkey == '' -%}
+      {%- assign bandnum = pct | plus: 0 -%}
+      {%- if bandnum >= 80 -%}{%- assign bandkey = 'high' -%}
+      {%- elsif bandnum >= 60 -%}{%- assign bandkey = 'medium' -%}
+      {%- else -%}{%- assign bandkey = 'low' -%}{%- endif -%}
+    {%- endif -%}
+    {%- if bandkey == 'high' -%}{%- assign n_high = n_high | plus: 1 -%}{%- endif -%}
+    {%- if bandkey == 'medium' -%}{%- assign n_med = n_med | plus: 1 -%}{%- endif -%}
+    {%- if bandkey == 'low' -%}{%- assign n_low = n_low | plus: 1 -%}{%- endif -%}
+  {%- endif -%}
+
+  {%- comment -%} change cell text {%- endcomment -%}
+  {%- if nread == 0 -%}
+    {%- assign chg = '—' -%}{%- assign chgkey = 'none' -%}
+  {%- elsif held -%}
+    {%- assign chg = 'held' -%}{%- assign chgkey = 'held' -%}
+  {%- elsif nread == 1 -%}
+    {%- assign chg = 'first reading' -%}{%- assign chgkey = 'first' -%}
+  {%- elsif delta > 0 -%}
+    {%- assign chg = delta | round: 1 | prepend: '+' -%}{%- assign chgkey = 'up' -%}
+  {%- elsif delta < 0 -%}
+    {%- assign chg = delta | abs | round: 1 | prepend: '−' -%}{%- assign chgkey = 'down' -%}
+  {%- else -%}
+    {%- assign chg = '0.0' -%}{%- assign chgkey = 'flat' -%}
+  {%- endif -%}
+
+  {%- if bandkey == 'baseline' -%}{%- assign bandword = baseline_label -%}{%- else -%}{%- assign bandword = band -%}{%- endif -%}
+  {%- if why == blank and nread > 0 and bandkey != 'baseline' -%}
+    {%- capture why -%}Verified {{ lv_raw | date: '%-d %b %Y' }}: RyeCentral Consensus Score {{ score }}/5 from {{ srcs | default: 0 }} independent sources. {{ band }} confidence ({{ pct }}/100).{%- endcapture -%}
+  {%- endif -%}
+  {%- assign short_title = product.title | remove: ' Review' | remove: ' review' -%}
+
+  {%- capture row -%}
+  <tr class="rc-ci-row" data-title="{{ product.title | escape }}" data-brand="{{ brand | escape }}" data-type="{{ typ | escape }}" data-band="{{ bandkey }}" data-bandword="{{ bandword | escape }}" data-score="{{ score }}" data-count="{{ count }}" data-sources="{{ srcs | default: 0 }}" data-pct="{{ pct | default: 0 }}" data-verified="{{ lv }}" data-delta="{{ delta }}" data-readings="{{ nread }}" data-handle="{{ product.handle }}" data-why="{{ why | escape }}">
+    <td class="rc-ci-rank" data-label="#"><span class="rc-ci-rank-n"></span></td>
+    <td class="rc-ci-bottle" data-label="Bottle">
+      <a class="rc-ci-name" href="/products/{{ product.handle }}">{{ short_title | escape }}</a>
+      <span class="rc-ci-brand">{{ brand | escape }}{% if typ != blank %} · {{ typ | escape }}{% endif %}</span>
+    </td>
+    <td class="rc-ci-score" data-label="Consensus Score"><span class="rc-ci-num">{{ score }}</span><span class="rc-ci-den">/5</span></td>
+    <td class="rc-ci-count" data-label="Published ratings"><span class="rc-ci-num">{{ count }}</span></td>
+    <td class="rc-ci-sources" data-label="Sources">{% if srcs != blank %}<span class="rc-ci-num">{{ srcs }}</span>{% else %}<span class="rc-ci-dim">—</span>{% endif %}</td>
+    <td class="rc-ci-conf" data-label="Confidence">
+      {%- if bandkey == 'baseline' -%}
+        <span class="rc-ci-band rc-ci-band-baseline"><span class="rc-ci-dot"></span>{{ baseline_label }}</span><span class="rc-ci-sub">{{ baseline_sub }}</span>
+      {%- else -%}
+        <span class="rc-ci-band rc-ci-band-{{ bandkey }}"><svg class="rc-ci-shield" viewBox="0 2 100 98" aria-hidden="true"><path d="M50 8 L17 20.5 V45.5 C17 68.4 32.8 90 50 96 C67.2 90 83 68.4 83 45.5 V20.5 Z"/><polygon points="0,48 100,48 94,59 100,70 0,70 6,59"/></svg>{{ band | escape }}</span><span class="rc-ci-sub"><span class="rc-ci-num">{{ pct }}</span>/100</span>
+      {%- endif -%}
+    </td>
+    <td class="rc-ci-change rc-ci-change-{{ chgkey }}" data-label="Change">
+      {%- if why != blank -%}<button type="button" class="rc-ci-why" aria-expanded="false" title="Why">{{ chg }}<span class="rc-ci-caret">▸</span></button>{%- else -%}<span class="rc-ci-dim">{{ chg }}</span>{%- endif -%}
+    </td>
+    <td class="rc-ci-verified" data-label="Verified">{% if lv != blank %}<span class="rc-ci-num">{{ lv }}</span>{% else %}<span class="rc-ci-dim">—</span>{% endif %}</td>
+    <td class="rc-ci-qrc" data-label="QR"></td>
+  </tr>
+  {%- if why != blank -%}
+  <tr class="rc-ci-detail" hidden>
+    <td colspan="9">
+      <div class="rc-ci-detail-in">
+        <span class="rc-ci-detail-k">{{ lastr.m }}</span>
+        <span class="rc-ci-detail-v">{{ why | escape }}</span>
+        {%- for r in hist.readings reversed -%}
+          {%- unless forloop.first -%}
+            {%- assign ni = nread | minus: forloop.index -%}
+            {%- assign rn = '' -%}
+            {%- if pubnotes and pubnotes.notes and pubnotes.notes.size > ni -%}{%- assign rn = pubnotes.notes[ni] | default: '' -%}{%- endif -%}
+            {%- if rn != blank -%}
+        <span class="rc-ci-detail-k">{{ r.m }}</span>
+        <span class="rc-ci-detail-v">{{ rn | escape }}</span>
+            {%- endif -%}
+          {%- endunless -%}
+        {%- endfor -%}
+      </div>
+    </td>
+  </tr>
+  {%- endif -%}
+  {%- endcapture -%}
+
+  {%- comment -%} Sort key: inverted score (2) + inverted count (7) + loop index (3) = 12 chars, so a plain string sort yields score desc, count desc, stable. {%- endcomment -%}
+  {%- assign s10 = score | times: 10 | round -%}
+  {%- assign k1 = 99 | minus: s10 | prepend: '00' | slice: -2, 2 -%}
+  {%- assign k2 = 9999999 | minus: count | prepend: '0000000' | slice: -7, 7 -%}
+  {%- assign k3 = n_total | prepend: '000' | slice: -3, 3 -%}
+  {%- capture meta -%}{{ product.handle }}@@F@@{{ short_title | escape }}@@F@@{{ score }}@@F@@{{ bandkey }}@@F@@{{ bandword | escape }}@@F@@{{ pct }}@@F@@{{ srcs }}@@F@@{{ purl }}@@F@@{{ product.title | json }}{%- endcapture -%}
+  {%- assign keyed = keyed | append: '@@ROW@@' | append: k1 | append: k2 | append: k3 | append: meta | append: '@@HTML@@' | append: row -%}
+{%- endfor -%}
+{%- endpaginate -%}
+
+{%- comment -%} Server-side ranking: sort the keyed rows, print the rank, rebuild the ItemList and the top-5 Strong block in rank order. {%- endcomment -%}
+{%- assign sorted = keyed | split: '@@ROW@@' | sort -%}
+{%- assign rank = 0 -%}
+{%- for entry in sorted -%}
+  {%- if entry == blank -%}{%- continue -%}{%- endif -%}
+  {%- assign rank = rank | plus: 1 -%}
+  {%- if rank < 10 -%}{%- assign rank_lbl = rank | prepend: '0' -%}{%- else -%}{%- assign rank_lbl = rank | append: '' -%}{%- endif -%}
+  {%- assign halves = entry | split: '@@HTML@@' -%}
+  {%- assign head = halves[0] | slice: 12, 4000 -%}
+  {%- assign f = head | split: '@@F@@' -%}
+  {%- assign rank_html = '<span class="rc-ci-rank-n">' | append: rank_lbl | append: '</span>' -%}
+  {%- assign html = halves[1] | replace_first: '<span class="rc-ci-rank-n"></span>', rank_html -%}
+  {%- assign rows = rows | append: html -%}
+  {%- capture item -%}{% if rank > 1 %},{% endif %}{"@type":"ListItem","position":{{ rank }},"url":{{ f[7] | json }},"name":{{ f[8] }}}{%- endcapture -%}
+  {%- assign items = items | append: item -%}
+  {%- if f[3] == 'high' and n_top < 5 -%}
+    {%- assign n_top = n_top | plus: 1 -%}
+    {%- capture topi -%}<li class="rc-ci-top-item"><span class="rc-ci-top-rank">{{ rank_lbl }}</span><div class="rc-ci-top-body"><a class="rc-ci-top-name" href="/products/{{ f[0] }}">{{ f[1] }}</a><span class="rc-ci-top-meta">RyeCentral Consensus Score <b>{{ f[2] }}/5</b> · {{ f[4] }} confidence <b>{{ f[5] }}</b>/100 · <b>{{ f[6] }}</b> sources</span></div></li>{%- endcapture -%}
+    {%- assign top_html = top_html | append: topi -%}
+    {%- if n_top == 1 -%}
+      {%- assign top1_handle = f[0] -%}{%- assign top1_name = f[1] -%}{%- assign top1_score = f[2] -%}{%- assign top1_pct = f[5] -%}{%- assign top1_srcs = f[6] -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- assign last_verified = dates | split: ',' | sort | last -%}
+{%- if last_verified == blank -%}{%- assign last_verified = 'pending' -%}{%- endif -%}
+{%- assign page_url = shop_url | append: '/pages/' | append: page.handle -%}
+
+{%- comment -%} FAQ answers are captured once and used for both the visible block and the FAQPage node, so the two can never disagree. {%- endcomment -%}
+{%- capture faq_q1 -%}What is the highest-rated rye whiskey right now?{%- endcapture -%}
+{%- capture faq_a1 -%}{%- if top1_name != blank -%}As of {{ last_verified }}, the highest-rated rye whiskey in this index at Strong confidence is <a href="/products/{{ top1_handle }}">{{ top1_name }}</a>, with a RyeCentral Consensus Score {{ top1_score }}/5 compiled from {{ top1_srcs }} sources at {{ top1_pct }}/100 confidence. A bottle with a higher raw score but an Early band can sit above it in the full table — the band tells you how much evidence sits behind the number, so compare the two together.{%- else -%}The full table above ranks every rye whiskey by RyeCentral Consensus Score; filter to Strong confidence to see the highest-rated bottles with the deepest evidence behind them.{%- endif -%}{%- endcapture -%}
+{%- capture faq_q2 -%}How are these rye whiskey ratings compiled?{%- endcapture -%}
+{%- capture faq_a2 -%}Each RyeCentral Consensus Score is compiled from the published ratings and critic reviews for that bottle, weighted by sample size and source quality and filtered to exclude brand copy and paid tastings. It is a derived figure, not a user rating, which is why it never appears in review-rating structured data. The per-source workings stay internal; the index publishes the score, the published-ratings count, the number of sources counted and the confidence behind the number. <a href="/pages/review-methodology#consensus-score">Full methodology →</a>{%- endcapture -%}
+{%- capture faq_q3 -%}What does the confidence rating mean?{%- endcapture -%}
+{%- capture faq_a3 -%}Confidence is a composite out of 100 built from source count, source quality, sample size, agreement between sources, stability across readings and the depth of flavour evidence. Strong is 80 or above, Solid is 60–79 and Early is below 60. {{ baseline_label }} rows carry the score as first compiled and are queued for their first verified reading. <a href="/pages/review-methodology#confidence">Confidence explained →</a>{%- endcapture -%}
+  .rc-ci h1 .rc-ci-h1-lead{color:var(--accent)}
+{%- capture faq_q4 -%}How often do the rye whiskey rankings change?{%- endcapture -%}
+{%- capture faq_a4 -%}Every bottle is re-verified on a rolling 60-day cycle. A published score only moves when a new reading differs by 0.1 or more, and on Early evidence it can fall but not rise, so the rankings shift when the evidence does, not with every new review. The Change column shows the movement at the latest reading and, where a score moved, a short note explaining why.{%- endcapture -%}
+{%- capture faq_q5 -%}Is this the same as the best rye whiskey list?{%- endcapture -%}
+{%- capture faq_a5 -%}No. This index is every rye whiskey RyeCentral has reviewed, in every confidence band, with the evidence behind each score. The <a href="/collections/community-top-rated-rye-whiskey">50 Top-Rated Rye Whiskeys</a> list is the shortlist drawn from it: the highest-scoring bottles at Solid or Strong confidence only. Start there to choose a bottle; come here to see how any bottle's score was earned.{%- endcapture -%}
+{%- capture faq_q6 -%}Can I quote or reuse a score from this index?{%- endcapture -%}
+{%- capture faq_a6 -%}Quoting a bottle's score is welcome — write it as RyeCentral Consensus Score n/5 and link to the bottle's review. Search engines and AI assistants are welcome to read, cite and learn from these public pages, including training AI models on them. Developers can show scores with their citation through the free <a href="/pages/consensus-api">API and MCP server</a>. Copying or scraping the index to republish, rebuild or resell it, or using it inside a product, database or ranking, needs a written data-partner licence; retailers, brands and publishers can display scores, the confidence badge and tasting data under that licence. <a href="/pages/partner-signup">Become a data partner →</a>{%- endcapture -%}
+
+<style>
+  .rc-ci,.rc-ci-gate{--bg:#000;--bg2:#0a0a0a;--ink:#f2f2f2;--muted:rgba(255,255,255,.55);--dim:rgba(255,255,255,.32);--rule:rgba(255,255,255,.22);--rule2:rgba(255,255,255,.12);--accent:#E8860C;--accent-soft:rgba(232,134,12,.14);--high:#3ddc84;--medium:#E8860C;--low:#9a9aa6;--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;--sans:var(--font-body-family,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .rc-ci{background:var(--bg);padding:56px 0 80px}
+  .rc-ci *,.rc-ci-gate *{box-sizing:border-box}
+  .rc-ci-wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  .rc-ci-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:10px;margin:0 0 14px}
+  .rc-ci-eyebrow::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--high);box-shadow:0 0 0 3px rgba(61,220,132,.18);animation:rc-ci-pulse 2.4s ease-in-out infinite}
+  @keyframes rc-ci-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.rc-ci-eyebrow::before{animation:none}}
+  .rc-ci h1{font-family:var(--font-heading-family,var(--sans));font-size:clamp(30px,4.2vw,46px);font-weight:700;letter-spacing:-.015em;line-height:1.05;margin:0 0 16px;color:#fff}
+  .rc-ci-intro{max-width:72ch;font-size:16px;line-height:1.6;color:var(--muted);margin:0 0 8px}
+  .rc-ci-intro a,.rc-ci-foot a,.rc-ci-top a,.rc-ci-faq a{color:var(--accent);text-decoration:none;border-bottom:1px dashed rgba(232,134,12,.5)}
+  .rc-ci-intro a:hover,.rc-ci-foot a:hover,.rc-ci-top a:hover,.rc-ci-faq a:hover{color:#fff;border-bottom-color:#fff}
+  .rc-ci-intro p{margin:0 0 8px}
+  .rc-ci-intro strong{color:#fff;font-weight:600}
+
+  .rc-ci-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px dashed var(--rule);margin:30px 0 26px}
+  .rc-ci-stat{padding:16px 18px;border-right:1px dashed var(--rule);border-bottom:1px dashed var(--rule)}
+  .rc-ci-stat:last-child{border-right:0}
+  .rc-ci-stat-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+  .rc-ci-stat-v{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+  .rc-ci-stat-v small{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+  .rc-ci-stat-v.rc-ci-high{color:var(--high)}
+  .rc-ci-stat-v.rc-ci-medium{color:var(--medium)}
+  .rc-ci-stat-v.rc-ci-low{color:var(--low)}
+  @media (min-width:900px){.rc-ci-stat{border-bottom:0}}
+
+  .rc-ci-top{border:1px dashed var(--rule);padding:18px 20px 8px;margin:0 0 26px}
+  .rc-ci-h2{font-family:var(--font-heading-family,var(--sans));font-size:20px;font-weight:700;letter-spacing:-.01em;line-height:1.2;margin:0 0 6px;color:#fff}
+  .rc-ci-top-sub{font-size:13.5px;line-height:1.55;color:var(--muted);margin:0 0 12px;max-width:80ch}
+  .rc-ci-top-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0;border-top:1px dashed var(--rule)}
+  .rc-ci-top-item{display:flex;gap:12px;align-items:flex-start;padding:12px 12px 12px 0;border-bottom:1px dashed var(--rule2)}
+  .rc-ci-top-rank{font-family:var(--mono);font-size:12px;color:var(--dim);padding-top:3px;flex-shrink:0;min-width:22px}
+  .rc-ci-top-body{min-width:0}
+  .rc-ci-top-name{display:block;color:#fff;font-weight:600;font-size:15px;line-height:1.3;border-bottom:0 !important}
+  .rc-ci-top-name:hover{color:var(--accent)}
+  .rc-ci-top-meta{display:block;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px;letter-spacing:.02em;line-height:1.5}
+  .rc-ci-top-meta b{color:var(--accent);font-weight:600}
+
+  .rc-ci-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 0;border-top:1px dashed var(--rule);border-bottom:1px dashed var(--rule);margin-bottom:0}
+  .rc-ci-search{flex:1 1 260px;display:flex;align-items:center;gap:10px;border:1px dashed var(--rule);padding:0 12px;height:40px;background:var(--bg2)}
+  .rc-ci-search:focus-within{border-style:solid;border-color:var(--accent)}
+  .rc-ci-search svg{width:15px;height:15px;stroke:var(--dim);fill:none;stroke-width:2;flex-shrink:0}
+  .rc-ci-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font-family:var(--mono);font-size:13px;height:100%;padding:0}
+  .rc-ci-search input::placeholder{color:var(--dim)}
+  .rc-ci-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .rc-ci-chip{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);background:transparent;border:1px dashed var(--rule);padding:0 12px;height:32px;cursor:pointer;transition:all .15s}
+  .rc-ci-chip:hover{color:#fff;border-color:#fff}
+  .rc-ci-chip[aria-pressed="true"]{color:#000;background:var(--accent);border-color:var(--accent);border-style:solid}
+  .rc-ci-chip[aria-pressed="true"].rc-ci-chip-high{background:var(--high);border-color:var(--high)}
+  .rc-ci-chip[aria-pressed="true"].rc-ci-chip-low{background:var(--low);border-color:var(--low)}
+  .rc-ci-chip[aria-pressed="true"].rc-ci-chip-baseline{background:#fff;border-color:#fff}
+  .rc-ci-sel{position:relative;display:flex;align-items:center;gap:8px;border:1px dashed var(--rule);height:40px;padding:0 12px;background:var(--bg2)}
+  .rc-ci-sel label{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .rc-ci-sel select{background:transparent;border:0;outline:0;color:#fff;font-family:var(--mono);font-size:13px;cursor:pointer;-webkit-appearance:none;appearance:none;padding-right:16px}
+  .rc-ci-sel::after{content:"▾";position:absolute;right:10px;color:var(--dim);pointer-events:none;font-size:12px}
+  .rc-ci-sel select option{background:#111;color:#fff}
+  .rc-ci-btn{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#fff;background:transparent;border:1px dashed var(--rule);height:40px;padding:0 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+  .rc-ci-btn:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+  .rc-ci-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+  .rc-ci thead th.rc-ci-qrh{cursor:default;text-align:center}
+  .rc-ci thead th.rc-ci-qrh:hover{color:var(--dim)}
+  .rc-ci tbody td.rc-ci-qrc{text-align:center;padding:8px 10px}
+  .rc-ci thead th.rc-ci-qrh,.rc-ci tbody td.rc-ci-qrc{position:sticky;right:0;z-index:1;background:var(--bg)}
+  .rc-ci tbody tr.rc-ci-row:hover td.rc-ci-qrc{background:var(--bg)}
+  .rc-ci-qri{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:36px;height:36px;padding:0;border:1px dashed var(--rule);border-radius:6px;background:transparent;color:var(--dim);cursor:pointer;transition:color .15s,border-color .15s}
+  .rc-ci-qri:hover,.rc-ci-qri:focus-visible{color:#fff;border-color:#E8860C}
+  .rc-ci-qri svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+  .rc-ci-count-line{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:12px 0 0}
+  .rc-ci-count-line b{color:var(--ink);font-weight:600}
+
+  .rc-ci-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+  .rc-ci-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .rc-ci table{width:100%;min-width:960px;border-collapse:collapse;table-layout:auto;font-variant-numeric:tabular-nums}
+  .rc-ci col.rc-ci-c-rank{width:56px}
+  .rc-ci col.rc-ci-c-bottle{width:auto}
+  .rc-ci col.rc-ci-c-score{width:108px}
+  .rc-ci col.rc-ci-c-count{width:104px}
+  .rc-ci col.rc-ci-c-sources{width:100px}
+  .rc-ci col.rc-ci-c-conf{width:150px}
+  .rc-ci col.rc-ci-c-change{width:132px}
+  .rc-ci col.rc-ci-c-verified{width:124px}
+  .rc-ci col.rc-ci-c-qr{width:64px}
+  .rc-ci-bottle{min-width:260px}
+  .rc-ci thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:500;color:var(--dim);text-align:left;padding:14px 14px 12px;border-bottom:1px dashed var(--rule);white-space:nowrap;cursor:pointer;user-select:none}
+  .rc-ci thead th:hover{color:#fff}
+  .rc-ci thead th[aria-sort]{color:var(--accent)}
+  .rc-ci thead th[aria-sort="descending"]::after{content:" ↓"}
+  .rc-ci thead th[aria-sort="ascending"]::after{content:" ↑"}
+  .rc-ci thead th + th,.rc-ci tbody td + td{border-left:1px dashed var(--rule2)}
+  .rc-ci tbody td{padding:13px 14px;border-bottom:1px dashed var(--rule);vertical-align:middle;font-size:14px;line-height:1.35}
+  .rc-ci tbody tr.rc-ci-row:hover td{background:var(--accent-soft)}
+  .rc-ci-rank{width:52px;color:var(--dim);font-family:var(--mono);font-size:12px}
+  .rc-ci-name{color:#fff;text-decoration:none;font-weight:600;font-size:15px;display:block;border-bottom:0}
+  .rc-ci-name:hover{color:var(--accent)}
+  .rc-ci-brand{display:block;color:var(--dim);font-size:12px;margin-top:3px;font-family:var(--mono);letter-spacing:.02em}
+  .rc-ci-num{font-family:var(--mono)}
+  .rc-ci-score .rc-ci-num{font-size:20px;font-weight:600;color:var(--accent)}
+  .rc-ci-den{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:2px}
+  .rc-ci-dim{color:var(--dim);font-family:var(--mono)}
+  .rc-ci-sub{display:block;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px;letter-spacing:.04em}
+  .rc-ci-band{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+  .rc-ci-shield{width:15px;height:15px;flex-shrink:0}
+  .rc-ci-shield path{fill:#d8d8de;stroke:#8b8b97;stroke-width:3}
+  .rc-ci-shield polygon{fill:#ff8a00}
+  .rc-ci-band-high{color:var(--high)}
+  .rc-ci-band-medium{color:var(--medium)}
+  .rc-ci-band-low{color:var(--low)}
+  .rc-ci-band-baseline{color:var(--dim);font-weight:500}
+  .rc-ci-dot{width:8px;height:8px;border:1px dashed var(--dim);border-radius:50%;display:inline-block}
+  .rc-ci-change{font-family:var(--mono);font-size:13px;white-space:nowrap}
+  .rc-ci-change-up .rc-ci-why{color:var(--high)}
+  .rc-ci-change-down .rc-ci-why{color:#ff6b57}
+  .rc-ci-change-first .rc-ci-why,.rc-ci-change-flat .rc-ci-why,.rc-ci-change-held .rc-ci-why{color:var(--muted)}
+  .rc-ci-why{background:transparent;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .rc-ci-why:hover{color:#fff}
+  .rc-ci-caret{display:inline-block;font-size:10px;color:var(--dim);transition:transform .15s}
+  .rc-ci-why[aria-expanded="true"] .rc-ci-caret{transform:rotate(90deg)}
+  .rc-ci-verified{font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .rc-ci-detail td{background:var(--bg2);padding:0;border-bottom:1px dashed var(--rule)}
+  .rc-ci-detail-in{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;padding:14px 14px 14px 66px;font-size:13px;line-height:1.5}
+  .rc-ci-detail-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);padding-top:2px}
+  .rc-ci-detail-v{color:var(--muted)}
+  .rc-ci-detail-v.rc-ci-num{font-size:12px}
+  .rc-ci-empty{padding:40px 14px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--dim);border-bottom:1px dashed var(--rule)}
+
+  .rc-ci-faq{margin-top:26px;border:1px dashed var(--rule);padding:18px 20px 6px}
+  .rc-ci-faq-item{padding:12px 0 14px;border-bottom:1px dashed var(--rule2)}
+  .rc-ci-faq-item:last-child{border-bottom:0}
+  .rc-ci-faq h3{font-family:var(--sans);font-size:15px;font-weight:600;color:#fff;margin:0 0 6px;line-height:1.35}
+  .rc-ci-faq p{font-size:13.5px;line-height:1.6;color:var(--muted);margin:0;max-width:90ch}
+
+  .rc-ci-foot{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0;border:1px dashed var(--rule)}
+  .rc-ci-foot-cell{padding:18px 20px;border-right:1px dashed var(--rule);font-size:13.5px;line-height:1.55;color:var(--muted)}
+  .rc-ci-foot-cell:last-child{border-right:0}
+  .rc-ci-foot-cell h2{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:0 0 8px;font-weight:500}
+  .rc-ci-foot code{font-family:var(--mono);font-size:12px;color:var(--ink);background:rgba(255,255,255,.06);padding:1px 6px}
+  .rc-ci-btn-primary{background:var(--accent);border-color:var(--accent);border-style:solid;color:#000;font-weight:600}
+  .rc-ci-btn-primary:hover{background:#fff;border-color:#fff;color:#000}
+  .rc-ci-terms-mini{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-decoration:none;border-bottom:1px dashed var(--rule);white-space:nowrap}
+  .rc-ci-terms-mini:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .rc-ci-legal{margin-top:14px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--dim);display:flex;flex-wrap:wrap;gap:6px 18px}
+  .rc-ci-legal a{color:var(--dim);text-decoration:none;border-bottom:1px dashed var(--rule)}
+  .rc-ci-legal a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .rc-ci-gate{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:20px}
+  .rc-ci-gate[hidden]{display:none}
+  .rc-ci-gate-panel{width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto;background:#000;border:1px dashed var(--rule);padding:26px 26px 22px;color:var(--ink);font-family:var(--sans)}
+  .rc-ci-gate-panel h2{font-family:var(--font-heading-family,var(--sans));font-size:24px;font-weight:700;margin:0 0 10px;color:#fff;letter-spacing:-.01em}
+  .rc-ci-gate-p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 16px}
+  .rc-ci-gate-form{display:grid;gap:12px}
+  .rc-ci-gate-l{display:grid;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .rc-ci-gate-l input,.rc-ci-gate-l select{font:inherit;font-family:var(--mono);font-size:14px;letter-spacing:0;text-transform:none;color:#fff;background:var(--bg2);border:1px dashed var(--rule);height:42px;padding:0 12px;outline:0;width:100%;-webkit-appearance:none;appearance:none;border-radius:0}
+  .rc-ci-gate-l input:focus,.rc-ci-gate-l select:focus,.rc-ci-gate-l input:focus-visible,.rc-ci-gate-l select:focus-visible{border-style:solid;border-color:var(--accent);outline:0;box-shadow:none}
+  .rc-ci-gate .rc-ci-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:none}
+  .rc-ci-gate-l select option{background:#111;color:#fff}
+  .rc-ci-gate-c{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;font-size:13px;line-height:1.5;color:var(--muted);cursor:pointer}
+  .rc-ci-gate-c input{margin:3px 0 0;width:16px;height:16px;accent-color:var(--accent)}
+  .rc-ci-gate-c a{color:var(--accent);text-decoration:none;border-bottom:1px dashed rgba(232,134,12,.5)}
+  .rc-ci-gate-err{font-family:var(--mono);font-size:12px;color:#ff6b57;margin:0;padding:10px 12px;border:1px dashed rgba(255,107,87,.5)}
+  .rc-ci-gate-err a{color:var(--accent)}
+  .rc-ci-gate-ok{font-family:var(--mono);font-size:12px;color:var(--high);margin:0;padding:10px 12px;border:1px dashed rgba(61,220,132,.5)}
+  .rc-ci-gate-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:4px}
+  .rc-ci-gate-id{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em;margin:6px 0 0}
+  @media (max-width:640px){
+    .rc-ci table{min-width:0}
+    .rc-ci-tablewrap{margin-left:-14px;margin-right:-14px}
+    .rc-ci col.rc-ci-c-rank{width:26px}.rc-ci-rank{width:26px;font-size:11px}
+    .rc-ci tbody td.rc-ci-rank,.rc-ci thead th[data-sort="rank"]{padding-left:4px;padding-right:2px;text-align:left}
+    .rc-ci-bottle{min-width:150px}.rc-ci tbody td.rc-ci-bottle{padding-left:10px;padding-right:8px}
+    .rc-ci col.rc-ci-c-score{width:76px}.rc-ci tbody td.rc-ci-score{padding-left:8px;padding-right:8px;white-space:nowrap}
+    .rc-ci col.rc-ci-c-qr{width:48px}.rc-ci tbody td.rc-ci-qrc{padding:8px 4px}.rc-ci thead th.rc-ci-qrh{padding-left:4px;padding-right:4px}
+  }
+  @media (max-width:640px){.rc-ci{padding:40px 0 60px}.rc-ci-foot-cell{border-right:0;border-bottom:1px dashed var(--rule)}.rc-ci-foot-cell:last-child{border-bottom:0}.rc-ci-detail-in{padding-left:14px;grid-template-columns:1fr}.rc-ci-gate-panel{padding:20px 16px}.rc-ci-top,.rc-ci-faq{padding-left:14px;padding-right:14px}}
+</style>
+
+<div class="rc-ci" id="rc-consensus-index" aria-labelledby="rc-ci-title">
+  <div class="rc-ci-wrap">
+    <p class="rc-ci-eyebrow">RyeCentral Consensus · live index · {{ n_total }} bottles</p>
+    {%- assign rc_ci_h1 = section.settings.heading | default: page.title -%}
+    {%- if rc_ci_h1 contains ':' -%}
+      {%- assign rc_ci_h1_parts = rc_ci_h1 | split: ':' -%}
+      <h1 id="rc-ci-title"><span class="rc-ci-h1-lead">{{ rc_ci_h1_parts[0] | strip | escape }}:</span> {{ rc_ci_h1 | remove_first: rc_ci_h1_parts[0] | remove_first: ':' | strip | escape }}</h1>
+    {%- else -%}
+      <h1 id="rc-ci-title">{{ rc_ci_h1 | escape }}</h1>
+    {%- endif -%}
+    <div class="rc-ci-intro">
+      {%- if page.content != blank -%}
+        {{ page.content }}
+      {%- else -%}
+        <p><strong>Rye whiskey ratings for every bottle RyeCentral has reviewed, ranked by RyeCentral Consensus Score out of 5.</strong> Each score is compiled from the published ratings and critic reviews behind that bottle, with the number of sources counted and a confidence rating shown beside it. Every rye is re-verified on a rolling 60-day cycle; a score moves only when the new reading differs by 0.1 or more, and on Early evidence it can fall but not rise. Derived figures only — the per-source workings stay internal. <a href="/pages/review-methodology#consensus-score">How we score →</a></p>
+      {%- endif -%}
+    </div>
+
+    <div class="rc-ci-stats" role="list" aria-label="Index summary">
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">Bottles indexed</p><div class="rc-ci-stat-v">{{ n_total }}</div></div>
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">Strong confidence</p><div class="rc-ci-stat-v rc-ci-high">{{ n_high }}</div></div>
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">Solid</p><div class="rc-ci-stat-v rc-ci-medium">{{ n_med }}</div></div>
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">Early</p><div class="rc-ci-stat-v rc-ci-low">{{ n_low }}</div></div>
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">{{ baseline_label }} · queued</p><div class="rc-ci-stat-v">{{ n_base }}</div></div>
+      <div class="rc-ci-stat" role="listitem"><p class="rc-ci-stat-l">Last verified</p><div class="rc-ci-stat-v" style="font-size:18px;padding-top:3px">{{ last_verified }}</div></div>
+    </div>
+
+    {%- if n_top > 0 -%}
+    <section class="rc-ci-top" aria-labelledby="rc-ci-top-title">
+      <h2 class="rc-ci-h2" id="rc-ci-top-title">Highest-rated rye whiskeys at Strong confidence</h2>
+      <p class="rc-ci-top-sub">The top of the rankings where the evidence runs deepest: {{ n_high }} of the {{ n_total }} bottles carry a Strong band. The number is each bottle's rank in the full table below.</p>
+      <ol class="rc-ci-top-list">{{ top_html }}</ol>
+    </section>
+    {%- endif -%}
+
+    <div class="rc-ci-bar" role="search">
+      <label class="rc-ci-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" id="rc-ci-q" placeholder="Search bottle, brand or type…" autocomplete="off" aria-label="Search the index">
+      </label>
+      <div class="rc-ci-chips" role="group" aria-label="Filter by confidence">
+        <button type="button" class="rc-ci-chip" data-band="all" aria-pressed="true">All</button>
+        <button type="button" class="rc-ci-chip rc-ci-chip-high" data-band="high" aria-pressed="false">Strong</button>
+        <button type="button" class="rc-ci-chip rc-ci-chip-medium" data-band="medium" aria-pressed="false">Solid</button>
+        <button type="button" class="rc-ci-chip rc-ci-chip-low" data-band="low" aria-pressed="false">Early</button>
+        <button type="button" class="rc-ci-chip rc-ci-chip-baseline" data-band="baseline" aria-pressed="false">{{ baseline_label }}</button>
+      </div>
+      <div class="rc-ci-sel">
+        <label for="rc-ci-sort">Sort</label>
+        <select id="rc-ci-sort">
+          <option value="score">Score</option>
+          <option value="count">Ratings</option>
+          <option value="pct">Confidence</option>
+          <option value="verified">Last verified</option>
+          <option value="delta">Change</option>
+          <option value="title">Name A–Z</option>
+        </select>
+      </div>
+      <button type="button" class="rc-ci-btn" id="rc-ci-csv" title="Download a licensed CSV copy of the index"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M6 10l6 6 6-6M4 21h16"/></svg>CSV</button>
+      <a class="rc-ci-terms-mini" href="#rc-ci-terms">Data terms</a>
+      <a class="rc-ci-terms-mini" href="/pages/consensus-api">API &amp; MCP</a>
+    </div>
+    <p class="rc-ci-count-line" id="rc-ci-showing" aria-live="polite">Showing <b>{{ n_total }}</b> of {{ n_total }}</p>
+
+    <div class="rc-ci-tablewrap">
+      <table id="rc-ci-table">
+        <caption class="rc-ci-caption">Rye whiskey ratings: every bottle ranked by RyeCentral Consensus Score, with published ratings, sources, confidence, latest change and last verified date</caption>
+        <colgroup><col class="rc-ci-c-rank"><col class="rc-ci-c-bottle"><col class="rc-ci-c-score"><col class="rc-ci-c-count"><col class="rc-ci-c-sources"><col class="rc-ci-c-conf"><col class="rc-ci-c-change"><col class="rc-ci-c-verified"><col class="rc-ci-c-qr"></colgroup>
+        <thead>
+          <tr>
+            <th scope="col" data-sort="rank" title="Rank in the current sort">#</th>
+            <th scope="col" data-sort="title">Bottle</th>
+            <th scope="col" data-sort="score" aria-sort="descending" title="RyeCentral Consensus Score out of 5">Score</th>
+            <th scope="col" data-sort="count" title="Published ratings compiled across the rye community">Ratings</th>
+            <th scope="col" data-sort="sources" title="Distinct filtered sources behind the score">Sources</th>
+            <th scope="col" data-sort="pct" title="Confidence band and composite 0–100 (not a statistical interval)">Confidence</th>
+            <th scope="col" data-sort="delta" title="Movement of the published score at the latest reading">Change</th>
+            <th scope="col" data-sort="verified" title="Date of the last verified reading">Verified</th>
+            <th scope="col" class="rc-ci-qrh" title="Tasting QR code: print a code for a tasting tube or bottle label that opens a solo tasting of that bottle">QR</th>
+          </tr>
+        </thead>
+        <tbody id="rc-ci-body">
+          {{ rows }}
+          <tr class="rc-ci-empty-row" hidden><td colspan="9" class="rc-ci-empty">No bottles match — try a shorter search or clear the filter.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <section class="rc-ci-faq" id="rc-ci-faq" aria-labelledby="rc-ci-faq-title">
+      <h2 class="rc-ci-h2" id="rc-ci-faq-title">Rye whiskey ratings: how to read this index</h2>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q1 }}</h3><p>{{ faq_a1 }}</p></div>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q2 }}</h3><p>{{ faq_a2 }}</p></div>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q3 }}</h3><p>{{ faq_a3 }}</p></div>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q4 }}</h3><p>{{ faq_a4 }}</p></div>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q5 }}</h3><p>{{ faq_a5 }}</p></div>
+      <div class="rc-ci-faq-item"><h3>{{ faq_q6 }}</h3><p>{{ faq_a6 }}</p></div>
+    </section>
+
+    <div class="rc-ci-foot">
+      <div class="rc-ci-foot-cell">
+        <h2>How rye whiskeys are rated and ranked here</h2>
+        <strong style="color:#fff">Score</strong> is the RyeCentral Consensus Score, a sample-weighted consensus of published ratings and critic scores, filtered for brand copy and paid tastings. <strong style="color:#fff">Confidence</strong> is a composite out of 100 (source count, source quality, sample size, agreement, stability and flavor-profile evidence): Strong ≥ 80, Solid 60–79, Early below 60. <strong style="color:#fff">{{ baseline_label }}</strong> rows carry the score as originally compiled and are queued for their first verified reading. <a href="/pages/review-methodology#confidence">Confidence explained →</a>
+      </div>
+      <div class="rc-ci-foot-cell" id="rc-ci-terms">
+        <h2>RyeCentral Consensus Data · Terms</h2>
+        The RyeCentral Consensus Score, its confidence rating and this index are compiled and owned by RyeCentral Brands, LLC. Quoting a bottle's score in commentary is welcome — always as <em>RyeCentral Consensus Score n/5</em>, with a link to the review. Search engines and AI assistants may read, index, cite and learn from these public pages, including training AI models on them. Developers can use the free <a href="/pages/consensus-api">Consensus API and MCP server</a> with a key, to show scores alongside their citation, and the CSV download is licensed for personal evaluation. A written licence is needed to copy or scrape the index in whole or in substantial part to republish, rebuild or resell it, to use it inside a product, database or ranking, or for anything beyond the free tier. Retailers, brands and publishers can display scores, the confidence badge and tasting data under a data-partner licence: <a href="/pages/partner-signup">become a partner →</a> · <a href="/policies/terms-of-service">full terms</a>. The score is a compiled figure, not a user rating; it must never be placed in review-rating structured data.
+      </div>
+    </div>
+    <p class="rc-ci-legal"><span>© {{ 'now' | date: '%Y' }} RyeCentral Brands, LLC</span><span>RyeCentral Consensus™ · RyeCentral Consensus Score™</span><a href="/policies/terms-of-service">Terms</a><a href="/policies/privacy-policy">Privacy</a><a href="/pages/partner-signup">Data-partner licence</a><a href="/pages/consensus-api">API &amp; MCP for developers</a></p>
+  </div>
+</div>
+
+<div class="rc-ci-gate" id="rc-ci-gate" hidden role="dialog" aria-modal="true" aria-labelledby="rc-ci-gate-title">
+  <div class="rc-ci-gate-panel">
+    <p class="rc-ci-eyebrow" style="margin-bottom:8px">Licensed download</p>
+    <h2 id="rc-ci-gate-title">Download the index as CSV</h2>
+    <p class="rc-ci-gate-p">Your copy is licensed to you for personal, non-commercial evaluation. Every row carries a download ID and your email, so a shared copy can be traced to this agreement. We record your email and this agreement as the record of your licence, then the download starts automatically.</p>
+    {% form 'customer', id: 'rc-ci-gate-form', class: 'rc-ci-gate-form' %}
+      <input type="hidden" name="contact[tags]" id="rc-ci-gate-tags" value="consensus-data-terms">
+      <input type="hidden" name="contact[accepts_marketing]" id="rc-ci-gate-mkt" value="false">
+      <label class="rc-ci-gate-l">Email<input type="email" name="contact[email]" id="rc-ci-gate-email" required autocomplete="email" placeholder="you@example.com"></label>
+      <label class="rc-ci-gate-l">Intended use<select id="rc-ci-gate-use" required><option value="">Choose one…</option><option value="personal">Personal — choosing what to buy or taste</option><option value="research">Research, journalism or education</option><option value="retail">Retailer, bar, brand or publisher</option><option value="other">Other</option></select></label>
+      <label class="rc-ci-gate-c"><input type="checkbox" id="rc-ci-gate-agree"><span>I agree to the <a href="/policies/terms-of-service" target="_blank" rel="noopener">RyeCentral Consensus Data Terms</a>: this copy is for my personal, non-commercial use; I will not republish, share, resell, scrape or redistribute it, or use it in any product, dataset, ranking or AI/ML training, without a written licence. If I quote a score I will credit "RyeCentral Consensus Score" and link the review.</span></label>
+      <label class="rc-ci-gate-c"><input type="checkbox" id="rc-ci-gate-updates"><span>Email me when the index updates (optional)</span></label>
+      <p class="rc-ci-gate-err" id="rc-ci-gate-err" hidden></p>
+      <p class="rc-ci-gate-ok" id="rc-ci-gate-ok" hidden></p>
+      <div class="rc-ci-gate-actions"><button type="button" class="rc-ci-btn" id="rc-ci-gate-cancel">Cancel</button><button type="submit" class="rc-ci-btn rc-ci-btn-primary" id="rc-ci-gate-go">Agree &amp; download</button></div>
+    {% endform %}
+  </div>
+</div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "@id": {{ page_url | append: '#dataset' | json }},
+      "name": "RyeCentral Consensus Index — Rye Whiskey Ratings",
+      "alternateName": ["Rye Whiskey Ratings Index", "RyeCentral Consensus Score index"],
+      "description": {{ 'Rye whiskey ratings and rankings for every rye whiskey reviewed on RyeCentral, ranked by RyeCentral Consensus Score (out of 5), with published-ratings count, source count, confidence band and composite, last-verified date and the change at the latest reading. Built only from independent, publicly published ratings and reviews under a published source standard. Derived figures only, compiled and owned by RyeCentral Brands, LLC; re-verified on a rolling 60-day cycle. Not user ratings.' | json }},
+      "url": {{ page_url | json }},
+      "license": {{ shop_url | append: '/policies/terms-of-service' | json }},
+      "usageInfo": {{ page_url | append: '#rc-ci-terms' | json }},
+      "isAccessibleForFree": true,
+      "conditionsOfAccess": "Free to view. Quoting a bottle's score with attribution to RyeCentral Consensus Score and a link to the review is permitted, and search engines and AI systems may index, cite and train on the public pages. Download requires agreement to the RyeCentral Consensus Data Terms; free API and MCP access requires a free key and showing each score's citation; copying or scraping the dataset to republish, rebuild or resell it, or use inside products, databases or rankings, requires a data-partner licence from RyeCentral Brands, LLC.",
+      "creditText": "RyeCentral Consensus Score, ryecentral.com",
+      "copyrightHolder": { "@type": "Organization", "name": "RyeCentral Brands, LLC", "url": {{ shop_url | json }} },
+      "creator": { "@type": "Organization", "name": "RyeCentral", "url": {{ shop_url | json }} },
+      "publisher": { "@type": "Organization", "name": "RyeCentral", "url": {{ shop_url | json }} },
+      "keywords": ["rye whiskey ratings", "rye whiskey rankings", "highest rated rye whiskey", "rye whiskey", "whiskey ratings", "consensus score", "whiskey reviews", "RyeCentral Consensus"],
+      "dateModified": {{ last_verified | json }},
+      "measurementTechnique": [
+        "Sample-weighted consensus of independent, publicly published ratings and critic scores. A source counts only if it is independent of the brand, reviews the exact bottle and its current recipe, and is published, dated and traceable. Each site counts as one source; large rating pools are weighted by sample size up to a cap. Sponsored posts, paid tastings, pay-to-enter medals, promotional roundups, brand-owned content and RyeCentral's own pages are excluded. Confidence is a 0-100 composite of source count, source quality, sample size, agreement, stability and flavor-profile evidence, banded Strong (80 and above), Solid (60-79) or Early (below 60).",
+        {{ shop_url | append: '/pages/review-methodology#sources' | json }}
+      ],
+      "variableMeasured": [
+        { "@type": "PropertyValue", "name": "RyeCentral Consensus Score", "minValue": 1, "maxValue": 5, "url": {{ shop_url | append: '/pages/review-methodology#consensus-score' | json }} },
+        { "@type": "PropertyValue", "name": "Published ratings count" },
+        { "@type": "PropertyValue", "name": "Sources count", "description": "Independent sites counted toward the score, one per site", "url": {{ shop_url | append: '/pages/review-methodology#sources' | json }} },
+        { "@type": "PropertyValue", "name": "RyeCentral Consensus Confidence", "minValue": 0, "maxValue": 100, "url": {{ shop_url | append: '/pages/review-methodology#confidence' | json }} },
+        { "@type": "PropertyValue", "name": "Last verified" },
+        { "@type": "PropertyValue", "name": "Change at latest reading" }
+      ]
+    },
+    {
+      "@type": "ItemList",
+      "@id": {{ page_url | append: '#list' | json }},
+      "name": "Rye whiskeys ranked by RyeCentral Consensus Score",
+      "numberOfItems": {{ n_total }},
+      "itemListOrder": "https://schema.org/ItemListOrderDescending",
+      "itemListElement": [{{ items }}]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": {{ page_url | append: '#faq' | json }},
+      "mainEntity": [
+        { "@type": "Question", "name": {{ faq_q1 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a1 | strip_html | json }} } },
+        { "@type": "Question", "name": {{ faq_q2 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a2 | strip_html | json }} } },
+        { "@type": "Question", "name": {{ faq_q3 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a3 | strip_html | json }} } },
+        { "@type": "Question", "name": {{ faq_q4 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a4 | strip_html | json }} } },
+        { "@type": "Question", "name": {{ faq_q5 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a5 | strip_html | json }} } },
+        { "@type": "Question", "name": {{ faq_q6 | json }}, "acceptedAnswer": { "@type": "Answer", "text": {{ faq_a6 | strip_html | json }} } }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": {{ page_url | append: '#breadcrumb' | json }},
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": {{ shop_url | json }} },
+        { "@type": "ListItem", "position": 2, "name": "Rye Whiskey Reviews", "item": {{ shop_url | append: '/collections/rye-whiskey-reviews' | json }} },
+        { "@type": "ListItem", "position": 3, "name": "Rye Whiskey Ratings", "item": {{ page_url | json }} }
+      ]
+    }
+  ]
+}
+</script>
+
+<script>
+(function(){
+  var body=document.getElementById('rc-ci-body'); if(!body) return;
+  var q=document.getElementById('rc-ci-q'), sortSel=document.getElementById('rc-ci-sort'), showing=document.getElementById('rc-ci-showing');
+  var chips=[].slice.call(document.querySelectorAll('.rc-ci-chip')), ths=[].slice.call(document.querySelectorAll('#rc-ci-table thead th[data-sort]'));
+  var emptyRow=body.querySelector('.rc-ci-empty-row');
+  var rows=[].slice.call(body.querySelectorAll('tr.rc-ci-row')).map(function(tr){
+    var d=tr.dataset, det=tr.nextElementSibling; if(det&&!det.classList.contains('rc-ci-detail')) det=null;
+    return {tr:tr,det:det,title:d.title,brand:d.brand,type:d.type||'',band:d.band,bandword:d.bandword||'',score:+d.score||0,count:+d.count||0,sources:+d.sources||0,pct:+d.pct||0,verified:d.verified||'',delta:+d.delta||0,readings:+d.readings||0,hay:(d.title+' '+d.brand+' '+(d.type||'')).toLowerCase()};
+  });
+  var total=rows.length, band='all', bandLabel='', key='score', dir=-1;
+  var defaultDir={score:-1,count:-1,sources:-1,pct:-1,verified:-1,delta:-1,title:1,rank:-1};
+  function cmp(a,b){
+    var va,vb;
+    switch(key){
+      case 'title': va=a.title.toLowerCase(); vb=b.title.toLowerCase(); return va<vb?-1*dir:va>vb?1*dir:0;
+      case 'verified': va=a.verified; vb=b.verified; if(va===vb) return b.score-a.score; if(!va) return 1; if(!vb) return -1; return va<vb?-1*dir:1*dir;
+      case 'pct': va=a.pct; vb=b.pct; if(va===vb) return b.score-a.score; return (va-vb)*dir;
+      case 'delta': va=a.readings?a.delta:-99; vb=b.readings?b.delta:-99; if(va===vb) return b.score-a.score; return (va-vb)*dir;
+      case 'count': if(a.count===b.count) return b.score-a.score; return (a.count-b.count)*dir;
+      case 'sources': if(a.sources===b.sources) return b.score-a.score; return (a.sources-b.sources)*dir;
+      default: if(a.score===b.score) return b.count-a.count; return (a.score-b.score)*dir;
+    }
+  }
+  function render(){
+    var needle=(q.value||'').trim().toLowerCase();
+    var vis=rows.filter(function(r){ return (band==='all'||r.band===band) && (!needle||r.hay.indexOf(needle)>-1); });
+    vis.sort(cmp);
+    var frag=document.createDocumentFragment();
+    rows.forEach(function(r){ r.tr.hidden=true; if(r.det){ r.det.hidden=true; var b=r.tr.querySelector('.rc-ci-why'); if(b) b.setAttribute('aria-expanded','false'); } });
+    vis.forEach(function(r,i){ r.tr.hidden=false; r.tr.querySelector('.rc-ci-rank-n').textContent=String(i+1).padStart(2,'0'); frag.appendChild(r.tr); if(r.det) frag.appendChild(r.det); });
+    body.insertBefore(frag, emptyRow);
+    emptyRow.hidden=vis.length>0;
+    showing.innerHTML='Showing <b>'+vis.length+'</b> of '+total+(band!=='all'?' · '+bandLabel:'')+(needle?' · “'+needle.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];})+'”':'');
+    ths.forEach(function(th){ if(th.dataset.sort===key||(key==='score'&&th.dataset.sort==='rank')) th.setAttribute('aria-sort',dir<0?'descending':'ascending'); else th.removeAttribute('aria-sort'); });
+    if(sortSel.value!==key && key!=='rank') sortSel.value=key;
+    render.visible=vis;
+  }
+  q.addEventListener('input',render);
+  sortSel.addEventListener('change',function(){ key=sortSel.value; dir=defaultDir[key]||-1; render(); });
+  chips.forEach(function(c){ c.addEventListener('click',function(){ band=c.dataset.band; bandLabel=(c.textContent||'').trim(); chips.forEach(function(x){ x.setAttribute('aria-pressed', x===c?'true':'false'); }); render(); }); });
+  ths.forEach(function(th){ th.addEventListener('click',function(){ var k=th.dataset.sort==='rank'?'score':th.dataset.sort; if(k===key) dir=-dir; else { key=k; dir=defaultDir[k]||-1; } render(); }); });
+  body.addEventListener('click',function(e){
+    var b=e.target.closest('.rc-ci-why'); if(!b) return;
+    var tr=b.closest('tr'), det=tr.nextElementSibling; if(!det||!det.classList.contains('rc-ci-detail')) return;
+    var open=b.getAttribute('aria-expanded')==='true'; b.setAttribute('aria-expanded',open?'false':'true'); det.hidden=open;
+  });
+  // ---- tasting QR codes: generator loads on first tap (see header) ----
+  var QR_SRC={{ 'rc-ci-qr.js' | asset_url | json }}, qrP=null;
+  function qrLib(){
+    if(!qrP) qrP=new Promise(function(res,rej){ var s=document.createElement('script'); s.src=QR_SRC; s.async=true; s.onload=function(){ window.RCQR?res(window.RCQR):rej(); }; s.onerror=function(){ qrP=null; rej(); }; document.head.appendChild(s); });
+    return qrP;
+  }
+  function rowName(tr){ var a=tr.querySelector('.rc-ci-name'); return a?(a.textContent||'').trim():(tr.dataset.title||''); }
+  body.addEventListener('click',function(e){
+    var qb=e.target.closest('.rc-ci-qri'); if(!qb) return;
+    e.preventDefault();
+    var row=qb.closest('tr');
+    qrLib().then(function(R){ R.open(row.dataset.handle, rowName(row)); }).catch(function(){ alert('Could not load the QR generator. Check your connection and try again.'); });
+  });
+  // QR icon in each row's own far-right QR cell (the cell is in the source; the button is added by script)
+  var QRI='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z"/></svg>';
+  rows.forEach(function(r){
+    var cell=r.tr.querySelector('.rc-ci-qrc'); if(!cell||cell.querySelector('.rc-ci-qri')) return;
+    var b=document.createElement('button'); b.type='button'; b.className='rc-ci-qri'; b.innerHTML=QRI;
+    b.title='Tasting QR code for this bottle'; b.setAttribute('aria-label','Tasting QR code: '+rowName(r.tr));
+    cell.appendChild(b);
+  });
+
+  // ---- licensed CSV download (click-through agreement) ----
+  var gate=document.getElementById('rc-ci-gate'), gform=document.getElementById('rc-ci-gate-form'), gemail=document.getElementById('rc-ci-gate-email'), guse=document.getElementById('rc-ci-gate-use'), gagree=document.getElementById('rc-ci-gate-agree'), gupd=document.getElementById('rc-ci-gate-updates'), gerr=document.getElementById('rc-ci-gate-err'), gok=document.getElementById('rc-ci-gate-ok'), gtags=document.getElementById('rc-ci-gate-tags'), gmkt=document.getElementById('rc-ci-gate-mkt'), ggo=document.getElementById('rc-ci-gate-go');
+  var TERMS={{ shop_url | append: '/policies/terms-of-service' | json }}, SHOP={{ shop_url | json }}, LV={{ last_verified | json }}, PENDING='rc_ci_pending';
+  function openGate(){ gerr.hidden=true; gok.hidden=true; ggo.disabled=false; try{ gemail.value=gemail.value||localStorage.getItem('rc_ci_email')||''; }catch(e){} gate.hidden=false; setTimeout(function(){ (gemail.value?guse:gemail).focus(); },30); }
+  function closeGate(){ gate.hidden=true; }
+  function showErr(html){ gerr.innerHTML=html; gerr.hidden=false; gok.hidden=true; }
+  function buildCsv(id,email,when){
+    var esc=function(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+    var all=rows.slice().sort(function(a,b){ return a.score===b.score?b.count-a.count:b.score-a.score; });
+    var head=['rank','bottle','brand','type','consensus_score_out_of_5','published_ratings','sources','confidence_band','confidence_0_100','last_verified','latest_change','change_reason','review_url','download_id','licensed_to','downloaded_at','terms'];
+    var lines=[head.join(',')];
+    all.forEach(function(r,i){ lines.push([i+1,r.title.replace(/ Review$/,''),r.brand,r.type,r.score.toFixed(1),r.count,r.sources||'',r.bandword,r.band==='baseline'?'':r.pct,r.verified,r.readings?r.delta.toFixed(1):'',r.tr.dataset.why||'',SHOP+'/products/'+r.tr.dataset.handle,id,email,when,TERMS].map(esc).join(',')); });
+    return '﻿'+lines.join('\r\n');
+  }
+  function triggerDownload(text,id){
+    var blob=new Blob([text],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='ryecentral-consensus-index-'+LV+'-'+id+'.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+  }
+  document.getElementById('rc-ci-csv').addEventListener('click',openGate);
+  document.getElementById('rc-ci-gate-cancel').addEventListener('click',closeGate);
+  gate.addEventListener('click',function(e){ if(e.target===gate) closeGate(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&!gate.hidden) closeGate(); });
+  gform.addEventListener('submit',function(e){
+    var email=(gemail.value||'').trim(), use=guse.value;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ e.preventDefault(); showErr('Enter a valid email address &mdash; it is written into your copy as the licensee.'); gemail.focus(); return; }
+    if(!use){ e.preventDefault(); showErr('Tell us how you intend to use the data.'); guse.focus(); return; }
+    if(use==='retail'){ e.preventDefault(); showErr('Displaying or using the index commercially needs a data-partner licence, which also unlocks the confidence badge, sliders and tasting data. <a href="/pages/partner-signup">Become a RyeCentral partner &rarr;</a>'); return; }
+    if(!gagree.checked){ e.preventDefault(); showErr('Please agree to the data terms to download your copy.'); gagree.focus(); return; }
+    var id='RC-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+    var when=new Date().toISOString();
+    gtags.value='consensus-data-terms, consensus-terms-v1, consensus-use:'+use+', csv:'+id;
+    gmkt.value=gupd.checked?'true':'false';
+    try{ localStorage.setItem('rc_ci_email',email); sessionStorage.setItem(PENDING,JSON.stringify({id:id,email:email,when:when})); }catch(err){}
+    ggo.disabled=true; gerr.hidden=true;
+    gok.textContent='Recording your agreement — your download starts in a moment…'; gok.hidden=false;
+    // The form now submits normally so Shopify records the agreement against this
+    // email (tagged consensus-data-terms / consensus-use:* / csv:<id>) and returns
+    // the visitor here with customer_posted=true. Only then is the file delivered.
+  });
+  // Deliver the licensed copy when Shopify sends the visitor back after recording.
+  (function(){
+    if(location.search.indexOf('customer_posted=true')<0) return;
+    var raw=null; try{ raw=sessionStorage.getItem(PENDING); }catch(e){}
+    if(!raw) return;
+    var p; try{ p=JSON.parse(raw); }catch(e){ return; }
+    try{ sessionStorage.removeItem(PENDING); }catch(e){}
+    if(history.replaceState){ try{ history.replaceState(null,'',location.pathname+location.hash); }catch(e){} }
+    openGate(); ggo.disabled=true; gerr.hidden=true;
+    gok.innerHTML='Agreement recorded · downloading your licensed copy · ID <b>'+p.id.replace(/[^A-Z0-9-]/g,'')+'</b>'; gok.hidden=false;
+    triggerDownload(buildCsv(p.id,p.email,p.when),p.id);
+    setTimeout(closeGate,4500);
+  })();
+  render();
+})();
+</script>
+
+{% schema %}
+{
+  "name": "RC Consensus Index",
+  "tag": "section",
+  "class": "rc-consensus-index-section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading (H1)", "default": "Rye Whiskey Ratings: the RyeCentral Consensus Index", "info": "Leave blank to use the page title (recommended — then the H1 is edited from Pages). The intro paragraph comes from the page's content in Shopify admin (Pages), with a built-in default when empty." }
+  ],
+  "presets": [ { "name": "RC Consensus Index" } ]
+}
+{% endschema %}
