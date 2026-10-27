@@ -343,7 +343,7 @@ router.post('/:id/review-preview', (req, res) => {
   if (!bottle) return res.status(404).json({ error: 'Bottle not found' });
 
   const guest = event.guests.get(guestId);
-  const preview = previewReview(response, bottle.product, guest?.name || 'Anonymous');
+  const preview = previewReview({ ...response, _mode: event.mode }, bottle.product, guest?.name || 'Anonymous');
 
   res.json({
     preview,
@@ -376,8 +376,8 @@ router.post('/:id/submit-review', async (req, res) => {
   try {
     // Allow guest to override title/body from the preview
     const modifiedResponse = editedTitle || editedBody
-      ? { ...response, _editedTitle: editedTitle, _editedBody: editedBody }
-      : response;
+      ? { ...response, _mode: event.mode, _editedTitle: editedTitle, _editedBody: editedBody }
+      : { ...response, _mode: event.mode };
 
     const result = await submitReview({
       apiToken: config.JUDGEME_API_TOKEN,

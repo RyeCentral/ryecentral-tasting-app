@@ -105,7 +105,10 @@ function generateReviewBody(response, product, guestName) {
   const parts = [];
 
   // Opening line
-  parts.push(`Tasted blind at a RyeCentral home tasting event.`);
+  // Solo tastings aren't blind (the taster picks the bottle), so say what they are
+  parts.push(response._mode === 'solo'
+    ? `Solo tasting using the RyeCentral tasting training app.`
+    : `Tasted blind at a RyeCentral home tasting event.`);
 
   // Nose / palate notes: picked pills plus any the taster added themselves
   // ("+ Add note" — catalogue words only, never scored)

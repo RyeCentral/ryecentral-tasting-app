@@ -280,7 +280,7 @@ export default function CommunityComparison({ bottles, savedResponses, leaderboa
         <div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>How You Compared to the Community</div>
           <div style={{ fontSize: 13, color: 'var(--rc-gray-500)' }}>
-            Deep dive into your blind tasting accuracy for each bottle
+            Deep dive into your tasting accuracy for each bottle
           </div>
         </div>
       </div>

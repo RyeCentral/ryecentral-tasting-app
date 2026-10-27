@@ -126,7 +126,7 @@ export default function ReviewPoster({ eventId, guestId, bottles, onAllPosted })
                 Post Your Reviews to Unlock Your Comparison Cards
               </h3>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
-                See how your blind tasting answers stacked up against the community — your comparison breakdown appears below once you post.
+                See how your tasting answers stacked up against the community — your comparison breakdown appears below once you post.
               </p>
 
               {/* Email input */}
