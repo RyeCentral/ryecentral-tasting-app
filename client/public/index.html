@@ -25,11 +25,18 @@
     <meta name="twitter:description" content="Host a blind rye whiskey tasting game with friends. Pick bottles, taste blind, rate flavors, and crown the winner." />
     <meta name="twitter:image" content="https://ryecentral-tasting.up.railway.app/og-image.png" />
 
+    <style>
+      /* Paint the app's dark background before the JS bundle loads, so there is no white flash. */
+      html, body { background: #1a1a1a; margin: 0; }
+      .rc-boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: #f5a623; font: 600 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .rc-boot-dot { width: 34px; height: 34px; border: 3px solid rgba(245,166,35,.25); border-top-color: #f5a623; border-radius: 50%; animation: rcspin .8s linear infinite; }
+      @keyframes rcspin { to { transform: rotate(360deg); } }
+    </style>
     <title>RyeCentral Home Whiskey Tasting</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root"><div class="rc-boot"><div class="rc-boot-dot"></div>RyeCentral Tasting</div></div>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
